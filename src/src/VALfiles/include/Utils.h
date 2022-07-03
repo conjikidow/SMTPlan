@@ -53,42 +53,39 @@
 using std::ostringstream;
 using std::string;
 
-namespace VAL
+namespace VAL {
+  
+template <typename T>
+struct ToStringer {
+	string operator()(T d)
+	{
+		ostringstream aStringStream;
+		aStringStream << d;
+		return aStringStream.str();
+	};
+};
+
+template <typename T>
+struct ToStringer<T *> {
+	string operator()(T * d)
+	{
+		ostringstream aStringStream;
+		aStringStream << *d;
+		return aStringStream.str();
+	};
+};
+
+template<typename T>
+string toString(T d)
 {
+	ToStringer<T> ts;
+	return ts(d);
+};
 
-    template <typename T>
-    struct ToStringer
-    {
-        string operator()(T d)
-        {
-            ostringstream aStringStream;
-            aStringStream << d;
-            return aStringStream.str();
-        };
-    };
+void replaceSubStrings(string & s,string s1,string s2);
 
-    template <typename T>
-    struct ToStringer<T*>
-    {
-        string operator()(T* d)
-        {
-            ostringstream aStringStream;
-            aStringStream << *d;
-            return aStringStream.str();
-        };
-    };
+void latexString(string & s);
 
-    template <typename T>
-    string toString(T d)
-    {
-        ToStringer<T> ts;
-        return ts(d);
-    };
-
-    void replaceSubStrings(string& s, string s1, string s2);
-
-    void latexString(string& s);
-
-};  // namespace VAL
+};
 
 #endif

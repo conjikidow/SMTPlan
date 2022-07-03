@@ -24,28 +24,28 @@
  *
  ************************************************************************/
 
-#include "TIM.h"
-#include "ptree.h"
 #include <iostream>
+#include "ptree.h"
+#include "TIM.h"
 
-#include "SimpleEval.h"
 #include "instantiation.h"
+#include "SimpleEval.h"
 
 using namespace TIM;
 using namespace VAL;
 using namespace Inst;
 
-int main(int argc, char* argv[])
+int main(int argc,char * argv[])
 {
 
-    performTIMAnalysis(&argv[1]);
+	performTIMAnalysis(&argv[1]);
 
 
-    for_each(TA->pbegin(), TA->pend(),
-        ptrwriter<PropertySpace>(cout, "\n"));
-    for_each(TA->abegin(), TA->aend(),
-        ptrwriter<PropertySpace>(cout, "\n"));
-    /*
+	for_each(TA->pbegin(),TA->pend(),
+						ptrwriter<PropertySpace>(cout,"\n"));
+	for_each(TA->abegin(),TA->aend(),
+						ptrwriter<PropertySpace>(cout,"\n"));
+/*
 	SimpleEvaluator::setInitialState();
     for(operator_list::const_iterator os = current_analysis->the_domain->ops->begin();
             os != current_analysis->the_domain->ops->end();++os)
@@ -111,19 +111,24 @@ int main(int argc, char* argv[])
 				Iterator<const_symbol * const,strP,&getConst>(args+3))) << "\n";
 */
 
-    domain* the_domain = current_analysis->the_domain;
-    the_domain->predicates->write(std::cout);
+	domain* the_domain = current_analysis->the_domain;
+     the_domain->predicates->write(std::cout);
 
-    std::cout << "Print the predicate vars" << std::endl;
+     std::cout << "Print the predicate vars" << std::endl;
 
-    pred_decl_list* predicates = the_domain->predicates;
-    for (pred_decl_list::const_iterator ci = predicates->begin(); ci != predicates->end(); ci++) {
-        holding_pred_symbol* hps = HPS((*ci)->getPred());
-        for (holding_pred_symbol::PIt i = hps->pBegin(); i != hps->pEnd(); ++i) {
-            TIMpredSymbol* tps = cTPS(*i);
-            tps->write(std::cout);
-            std::cout << "\nIs definitely static " << tps->isDefinitelyStatic() << tps->isStatic() << std::endl;
-            std::cout << ", ";
-        }
-    }
+     pred_decl_list* predicates = the_domain->predicates;
+     for (pred_decl_list::const_iterator ci = predicates->begin(); ci != 
+              predicates->end(); ci++)
+     {
+         holding_pred_symbol * hps = HPS((*ci)->getPred());
+         for(holding_pred_symbol::PIt i = hps->pBegin();i != hps->pEnd();++i)
+         {
+         	TIMpredSymbol * tps = cTPS(*i);
+         tps -> write(std::cout);
+         std::cout << "\nIs definitely static " << 
+            tps->isDefinitelyStatic() << tps->isStatic() << std::endl;
+         std::cout << ", ";
+         }
+     }
+
 }

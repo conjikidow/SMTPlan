@@ -27,21 +27,19 @@
 #ifndef __LITERALPROPLINK
 #define __LITERALPROPLINK
 
-namespace VAL
-{
-    class SimpleProposition;
-    class Environment;
-};  // namespace VAL
+namespace VAL {
+class SimpleProposition;
+class Environment;
+};
 
-namespace Inst
-{
+namespace Inst {
 
-    class Literal;
-    class instantiatedOp;
+class Literal;
+class instantiatedOp;
 
-    Literal* toLiteral(const VAL::SimpleProposition*);
-    VAL::Environment toEnv(instantiatedOp* op);
+Literal * toLiteral(const VAL::SimpleProposition *);
+VAL::Environment toEnv(instantiatedOp * op);
 
-};  // namespace Inst
+};
 
 #endif

@@ -30,44 +30,41 @@
 #include <map>
 #include <set>
 
-namespace TIM
-{
-    class Property;
+namespace TIM {
+class Property;
 }
 
-namespace VAL
+namespace VAL {
+using TIM::Property;
+
+class CausalGraph {
+public:
+	typedef std::map<const Property *,std::set<const Property *> > Graph;
+
+private:
+	Graph dependencies;
+	Graph dependents;
+	
+public:
+	CausalGraph();
+	const std::set<const Property *> & getDependencies(const Property * p)
+	{
+		return dependencies[p];
+	};
+	const std::set<const Property *> & getDependents(const Property * p)
+	{
+		return dependents[p];
+	};
+	void add(const Property *,const Property *);
+	void write(std::ostream & o) const;
+};
+
+inline std::ostream & operator<<(std::ostream & o,const CausalGraph & cg)
 {
-    using TIM::Property;
+	cg.write(o);
+	return o;
+};
 
-    class CausalGraph
-    {
-      public:
-        typedef std::map<const Property*, std::set<const Property*>> Graph;
-
-      private:
-        Graph dependencies;
-        Graph dependents;
-
-      public:
-        CausalGraph();
-        const std::set<const Property*>& getDependencies(const Property* p)
-        {
-            return dependencies[p];
-        };
-        const std::set<const Property*>& getDependents(const Property* p)
-        {
-            return dependents[p];
-        };
-        void add(const Property*, const Property*);
-        void write(std::ostream& o) const;
-    };
-
-    inline std::ostream& operator<<(std::ostream& o, const CausalGraph& cg)
-    {
-        cg.write(o);
-        return o;
-    };
-
-}  // namespace VAL
+}
 
 #endif

@@ -28,9 +28,9 @@
 #define __OPTINTERFACE
 
 
-void initialiser(int ndim, ColumnVector& x)
+void initialiser(int ndim,ColumnVector & x)
 {
-    x(0) = 0.0;
+	x(0) = 0.0;
 };
 
 

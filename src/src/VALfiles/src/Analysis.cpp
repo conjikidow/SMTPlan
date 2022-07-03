@@ -38,12 +38,12 @@
   Strathclyde Planning Group
  */
 
-#include "Analyser.h"
-#include "FlexLexer.h"
-#include "ptree.h"
 #include <cstdio>
-#include <fstream>
 #include <iostream>
+#include <fstream>
+#include "ptree.h"
+#include "FlexLexer.h"
+#include "Analyser.h"
 
 extern int yyparse();
 extern int yydebug;
@@ -52,60 +52,63 @@ extern int yydebug;
 using std::ifstream;
 using std::ofstream;
 
-namespace VAL
-{
+namespace VAL {
 
-    parse_category* top_thing = NULL;
+parse_category* top_thing=NULL;
 
-    analysis an_analysis;
-    analysis* current_analysis;
+analysis an_analysis;
+analysis* current_analysis;
 
-    yyFlexLexer* yfl;
+yyFlexLexer* yfl;
 
-};  // namespace VAL
+};
 
-char* current_filename;
+char * current_filename;
 using namespace VAL;
 
-int main(int argc, char* argv[])
+int main(int argc,char * argv[])
 {
-    current_analysis = &an_analysis;
+    current_analysis= &an_analysis;
     an_analysis.pred_tab.replaceFactory<extended_pred_symbol>();
-
+    
     ifstream* current_in_stream;
-    yydebug = 0;  // Set to 1 to output yacc trace
+    yydebug=0; // Set to 1 to output yacc trace 
 
-    yfl = new yyFlexLexer;
+    yfl= new yyFlexLexer;
 
     // Loop over given args
-    for (int a = 1; a < argc; ++a) {
-        current_filename = argv[a];
-        cout << "File: " << current_filename << '\n';
-        current_in_stream = new ifstream(current_filename);
-        if (current_in_stream->bad()) {
-            // Output a message now
-            cout << "Failed to open\n";
+    for (int a=1; a<argc; ++a)
+    {
+	current_filename= argv[a];
+	cout << "File: " << current_filename << '\n';
+	current_in_stream= new ifstream(current_filename);
+	if (current_in_stream->bad())
+	{
+	    // Output a message now
+	    cout << "Failed to open\n";
+	    
+	    // Log an error to be reported in summary later
+	    line_no= 0;
+	    log_error(E_FATAL,"Failed to open file");
+	}
+	else
+	{
+	    line_no= 1;
 
-            // Log an error to be reported in summary later
-            line_no = 0;
-            log_error(E_FATAL, "Failed to open file");
-        } else {
-            line_no = 1;
+	    // Switch the tokeniser to the current input stream
+	    yfl->switch_streams(current_in_stream,&cout);
+	    yyparse();
 
-            // Switch the tokeniser to the current input stream
-            yfl->switch_streams(current_in_stream, &cout);
-            yyparse();
-
-            // Output syntax tree
-            //if (top_thing) top_thing->display(0);
-        }
-        delete current_in_stream;
+	    // Output syntax tree
+	    //if (top_thing) top_thing->display(0);
+	}
+	delete current_in_stream;
     }
     // Output the errors from all input files
     current_analysis->error_list.report();
     delete yfl;
     Analyser a;
     current_analysis->the_problem->visit(&a);
-    current_analysis->the_domain->visit(&a);
+   	current_analysis->the_domain->visit(&a); 
     current_analysis->the_domain->predicates->visit(&a);
 }

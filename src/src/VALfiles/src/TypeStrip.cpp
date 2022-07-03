@@ -24,7 +24,7 @@
  *
  ************************************************************************/
 
-/*-----------------------------------------------------------------------------
+ /*-----------------------------------------------------------------------------
   VAL - The Automatic Plan Validator for PDDL2.2
 
   $Date: 2009-02-05 10:50:24 $
@@ -45,98 +45,108 @@
   Strathclyde Planning Group
   http://planning.cis.strath.ac.uk
  ----------------------------------------------------------------------------*/
+#include <cstdio>
+#include <iostream>
+#include <fstream>
+#include "ptree.h"
 #include "FlexLexer.h"
 #include "TypeStripWC.h"
-#include "ptree.h"
-#include <cstdio>
-#include <fstream>
-#include <iostream>
 
-using std::cerr;
-using std::cout;
 using std::ifstream;
 using std::ofstream;
+using std::cerr;
+using std::cout;
 using std::ostream;
 
 extern int yyparse();
 extern int yydebug;
 
-namespace VAL
-{
-    parse_category* top_thing = NULL;
+namespace VAL {
+parse_category* top_thing=NULL;
 
 
-    analysis an_analysis;
-    analysis* current_analysis;
 
-    yyFlexLexer* yfl;
+analysis an_analysis;
+analysis* current_analysis;
 
-    bool Verbose = false;
-    ostream* report = &cout;
-};  // namespace VAL
+yyFlexLexer * yfl;
 
-char* current_filename;
+bool Verbose = false;
+ostream * report = & cout;
+};
+
+char * current_filename;
 using namespace VAL;
 
-int main(int argc, char* argv[])
+int main(int argc,char * argv[])
 {
-    current_analysis = &an_analysis;
-
-    yfl = new yyFlexLexer;
-
+	current_analysis = & an_analysis;
+	
+	yfl = new yyFlexLexer;
+    
     ifstream current_in_stream(argv[1]);
-    yydebug = 0;  // Set to 1 to output yacc trace
+    yydebug=0; // Set to 1 to output yacc trace 
 
-    cout << "Processing file: " << argv[1] << '\n';
+	cout << "Processing file: " << argv[1] << '\n';
+	
+	if (current_in_stream.bad())
+	{
+	    cout << "Failed to open\n";
+	    // Log an error to be reported in summary later
+	    line_no= 0;
+	    log_error(E_FATAL,"Failed to open file");
+	}
+	else
+	{
+	    line_no= 1;
 
-    if (current_in_stream.bad()) {
-        cout << "Failed to open\n";
-        // Log an error to be reported in summary later
-        line_no = 0;
-        log_error(E_FATAL, "Failed to open file");
-    } else {
-        line_no = 1;
+	    // Switch the tokeniser to the current input stream
+	    yfl->switch_streams(&current_in_stream,&cout);
+	    yyparse();
 
-        // Switch the tokeniser to the current input stream
-        yfl->switch_streams(&current_in_stream, &cout);
-        yyparse();
-
-        // Output syntax tree
-        unique_ptr<WriteController> ts = unique_ptr<WriteController>(new TypeStripWriteController(current_analysis));
-        parse_category::setWriteController(ts);
-        if (top_thing) {
-            string nm(argv[1]);
-            nm += ".untyped";
-            ofstream domfile(nm.c_str());
-            domfile << *top_thing;
-        };
-    }
+	    // Output syntax tree
+	    unique_ptr<WriteController> ts 
+	    		= unique_ptr<WriteController>(new TypeStripWriteController(current_analysis));
+	    parse_category::setWriteController(ts);
+	    if (top_thing) 
+		{
+			string nm(argv[1]);
+			nm += ".untyped";
+			ofstream domfile(nm.c_str());
+			domfile << *top_thing;
+		};
+	}
     // Output the errors from all input files
     current_analysis->error_list.report();
     delete yfl;
 
-    for (int i = 2; i < argc; ++i) {
-        yfl = new yyFlexLexer;
-        ifstream problem_in_stream(argv[i]);
-        cout << "Processing file: " << argv[i] << "\n";
-        if (problem_in_stream.bad()) {
-            cout << "Failed to open\n";
-            // Log an error to be reported in summary later
-            line_no = 0;
-            log_error(E_FATAL, "Failed to open file");
-        } else {
-            line_no = 1;
+    for(int i = 2;i < argc;++i)
+    {
+    	yfl = new yyFlexLexer;
+    	ifstream problem_in_stream(argv[i]);
+    	cout << "Processing file: " << argv[i] << "\n";
+    	if (problem_in_stream.bad())
+		{
+		    cout << "Failed to open\n";
+		    // Log an error to be reported in summary later
+		    line_no= 0;
+		    log_error(E_FATAL,"Failed to open file");
+		}
+		else
+		{
+		    line_no= 1;
 
-            // Switch the tokeniser to the current input stream
-            yfl->switch_streams(&problem_in_stream, &cout);
-            yyparse();
-
-            if (top_thing) {
-                string nm(argv[2]);
-                nm += ".untyped";
-                ofstream probfile(nm.c_str());
-                probfile << *top_thing;
-            };
-        }
-    }
+		    // Switch the tokeniser to the current input stream
+		    yfl->switch_streams(&problem_in_stream,&cout);
+		    yyparse();
+		    
+		    if (top_thing)
+		    {
+		    	string nm(argv[2]);
+		    	nm += ".untyped";
+		    	ofstream probfile(nm.c_str());
+		    	probfile << *top_thing;
+		    };
+		}
+	}
 }

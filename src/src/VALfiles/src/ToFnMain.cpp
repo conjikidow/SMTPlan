@@ -24,29 +24,30 @@
  *
  ************************************************************************/
 
+#include "ToFunction.h"
 #include "FastEnvironment.h"
 #include "SASActions.h"
-#include "SimpleEval.h"
-#include "ToFunction.h"
 #include "instantiation.h"
+#include "SimpleEval.h"
 
 using namespace SAS;
 
-int main(int argc, char* argv[])
+int main(int argc,char * argv[])
 {
-    performTIMAnalysis(&argv[1]);
-    use_sasoutput = true;
-    FunctionStructure fs;
-    fs.normalise();
-    fs.initialise();
+	performTIMAnalysis(&argv[1]);
+	use_sasoutput = true;
+	FunctionStructure fs;
+	fs.normalise();
+	fs.initialise();
 
-    fs.processActions();
-    fs.buildLayers();
-
+	fs.processActions();
+	fs.buildLayers();
+	
     fs.setUpInitialState();
     int level = 0;
-    while (fs.growOneLevel()) {
-        ++level;
-        cout << "Built level: " << level << "\n";
+    while(fs.growOneLevel())
+    {
+    	++level;
+    	cout << "Built level: " << level << "\n";
     };
 };

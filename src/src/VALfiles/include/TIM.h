@@ -30,17 +30,15 @@
 #include "TimSupport.h"
 
 
-namespace VAL
-{
-    extern TypeChecker* theTC;
+namespace VAL {
+extern TypeChecker * theTC;
 };
 
-namespace TIM
-{
-    extern TIMAnalyser* TA;
+namespace TIM {
+extern TIMAnalyser * TA;
 
-    void performTIMAnalysis(char* argv[]);
+void performTIMAnalysis(char * argv[]);
 
-};  // namespace TIM
+};
 
 #endif

@@ -58,7 +58,7 @@ namespace SMTPlan {
 				for(; ait != action_ids.end(); ait++) {
 					//if(run_action_vars.find(*ait)==run_action_vars.end()) continue;
 					z3::expr v = m.eval(run_action_vars[*ait][h]);
-					if(eq(v,t))	std::cout << m.eval(time_vars[h]) << ":\t" << run_action_vars[*ait][h] << "\t(running)" << std::endl;
+					if(eq(v,t))	std::cout << m.eval(time_vars[h]) << ":\t  " << run_action_vars[*ait][h] << "\t(running)" << std::endl;
 				}
 
 				// end
@@ -66,21 +66,21 @@ namespace SMTPlan {
 				for(; ait != action_ids.end(); ait++) {
 					if(end_action_vars.find(*ait)==end_action_vars.end()) continue;
 					z3::expr v = m.eval(end_action_vars[*ait][h]);
-					if(eq(v,t))	std::cout << m.eval(time_vars[h]) << ":\t" << end_action_vars[*ait][h] << "\t(end)" << std::endl;
+					if(eq(v,t))	std::cout << m.eval(time_vars[h]) << ":\t  " << end_action_vars[*ait][h] << "\t(end)" << std::endl;
 				}
 
 				std::vector<std::vector<std::vector<z3::expr> > >::iterator lit = event_cascade_literal_vars.begin();
 				for(; lit != event_cascade_literal_vars.end(); lit++) {
 					for(int b=0; b<opt->cascade_bound; b++) {
 						z3::expr v = m.eval((*lit)[h][b]);
-						if(eq(v,t)) std::cout << m.eval(time_vars[h]) << ":\t" << (*lit)[h][b] << std::endl;
+						if(eq(v,t)) std::cout << m.eval(time_vars[h]) << ":\t    " << (*lit)[h][b] << std::endl;
 					}
 				}
 
 				std::vector<std::vector<std::vector<z3::expr> > >::iterator fit = event_cascade_function_vars.begin();
 				for(; fit != event_cascade_function_vars.end(); fit++) {
 					for(int b=0; b<opt->cascade_bound; b++) {
-						std::cout << m.eval(time_vars[h]) << ":\t" << (*fit)[h][b] << " == " << m.eval((*fit)[h][b]) << std::endl;
+						std::cout << m.eval(time_vars[h]) << ":\t    " << (*fit)[h][b] << " == " << m.eval((*fit)[h][b]) << std::endl;
 					}
 				}
 			}

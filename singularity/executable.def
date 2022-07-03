@@ -1,0 +1,38 @@
+# A image to build SMTPlan+
+BootStrap: localimage
+From: ./build_environment.sif
+Stage: build
+
+# Copy source files
+%files
+    ../src /home/src
+
+# Build SMTPlan+
+%post
+    cd /home/src
+    mkdir build && cd build
+    cmake ..
+    make -j4
+
+
+# A image to run SMTPlan+
+BootStrap: docker
+From: ubuntu:16.04
+Stage: final
+
+%environment
+    export DEBCONF_NOWARNINGS=yes
+
+%post
+    apt-get update
+    apt-get upgrade -y
+    apt-get install --no-install-recommends -y \
+        libgmp3-dev \
+        libmpfr-dev
+    rm -rf /var/lib/apt/lists/*
+
+%files from build
+    /home/src/build/SMTPlan /bin/SMTPlan
+
+%runscript
+    /bin/SMTPlan $@

@@ -1,0 +1,52 @@
+BootStrap: docker
+From: ubuntu:16.04
+
+%environment
+    export DEBCONF_NOWARNINGS=yes
+
+%post
+    apt-get update && apt-get upgrade -y
+    apt-get install --no-install-recommends -y \
+        bison \
+        ca-certificates \
+        cmake \
+        doxygen \
+        flex \
+        g++ \
+        git \
+        libboost1.58-all-dev \
+        libbz2-dev \
+        libgmp3-dev \
+        libgsl-dev \
+        libmpfr-dev \
+        libz-dev \
+        m4 \
+        make \
+        p7zip \
+        zlib1g-dev
+
+# Install Z3
+%post
+    git clone https://github.com/Z3Prover/z3.git /home/z3 && cd /home/z3
+    git checkout tags/z3-4.8.8
+    mkdir build && cd build
+    cmake -G "Unix Makefiles" -DZ3_BUILD_LIBZ3_SHARED=FALSE ..
+    make -j4
+    make install
+
+# Install mp++
+%post
+    git clone https://github.com/bluescarni/mppp.git /home/mppp && cd /home/mppp
+    git checkout tags/v0.9
+    mkdir build && cd build
+    cmake -DMPPP_BUILD_STATIC_LIBRARY=ON ..
+    make -j4
+    make install
+
+# Install Piranha
+%post
+    git clone https://github.com/bluescarni/piranha.git /home/piranha && cd /home/piranha
+    git checkout 7e42042
+    mkdir build && cd build
+    cmake ..
+    make install -j4

@@ -43,6 +43,7 @@
 
 #include <cstdio>
 #include <iostream>
+#include <list>
 #include <string>
 
 #include "ptree.h"

@@ -53,7 +53,7 @@ void printUsage(char* arg) {
 /*---------------------------*/
 
 bool parseArguments(int argc, char *argv[], SMTPlan::PlannerOptions &options) {
-	
+
 	// file paths
 	options.domain_path = argv[1];
 	options.problem_path = argv[2];
@@ -86,7 +86,7 @@ bool parseArguments(int argc, char *argv[], SMTPlan::PlannerOptions &options) {
 					return false;
 				}
 			}
-			
+
 			// set options
 			if(argument[j].name == "-h") {
 				return false;
@@ -236,10 +236,14 @@ int main (int argc, char *argv[]) {
 		z3::check_result result = encoder->solve();
 
 		if(result == z3::sat) {
-			encoder->printModel();
 			if(options.verbose) {
 				fprintf(stdout,"Solved %i:\t%f seconds\n", i, getElapsed());
 				fprintf(stdout,"Total time:\t%f seconds\n", getTotalElapsed());
+				std::cout << "\n==================================================" << std::endl;
+			}
+			encoder->printModel();
+			if(options.verbose) {
+				std::cout << "==================================================\n" << std::endl;
 			}
 			delete encoder;
 			return 0;

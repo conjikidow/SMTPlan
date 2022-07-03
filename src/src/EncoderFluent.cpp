@@ -18,6 +18,7 @@ namespace SMTPlan {
 		z3::model m = z3_solver->get_model();
 		z3::expr t = z3_context->bool_val(true);
 		z3::set_param("pp.decimal", true);
+
 		//print plan
 		for(int h=0; h<upper_bound; h++) {
 
@@ -69,7 +70,7 @@ namespace SMTPlan {
 				}
 			}
 		}
-		std::cout << "Goal at " << "[" << m.eval(time_vars[upper_bound-1]) << "]" << std::endl;
+		std::cout << m.eval(time_vars[upper_bound-1]) << ":\t< Goal >" << std::endl;
 	}
 
 	/**
@@ -225,7 +226,7 @@ namespace SMTPlan {
 	/**
 	 * Constraints P3--P4 (A Compilation of the Full PDDL+ Language into SMT)
 	 * encodes the happening time constraints
-	 */	
+	 */
 	void EncoderFluent::encodeTimings(int H) {
 
 		for(int h=next_layer; h<H; h++) {
@@ -290,7 +291,7 @@ namespace SMTPlan {
 			// assign effects
 			for (VAL::pc_list<VAL::assignment*>::const_iterator ci = eff_list->assign_effects.begin(); ci != eff_list->assign_effects.end(); ci++) {
 				const VAL::assignment* effect = *ci;
-				Inst::PNE * l = new Inst::PNE(effect->getFTerm(), fe);	
+				Inst::PNE * l = new Inst::PNE(effect->getFTerm(), fe);
 				Inst::PNE * const lit = Inst::instantiatedOp::findPNE(l);
 
 				enc_pneID = lit->getID();
@@ -411,7 +412,7 @@ namespace SMTPlan {
 				ss.str("");
 				ss << enc_op_string << h << "_dur";
 				dur_action_vars[enc_opID].push_back(z3_context->real_const(ss.str().c_str()));
-		
+
 				// running action/process iff (remaining duration > 0)
 				z3_solver->add(run_action_vars[enc_opID][h] == (dur_action_vars[enc_opID][h] > 0));
 				z3_solver->add(!run_action_vars[enc_opID][h] == (dur_action_vars[enc_opID][h] == 0));
@@ -480,7 +481,7 @@ namespace SMTPlan {
 			}
 
 			for(int h=next_layer; h<upper_bound; h++) {
-			
+
 				// MAKE VARS
 				std::stringstream ss;
 				ss << enc_op_string << h << "_sta";
@@ -590,7 +591,7 @@ namespace SMTPlan {
 						// declare must condition
 						z3_solver->add(mk_and(mustConstraints));
 					}
-					delete enc_event_condition_stack;				
+					delete enc_event_condition_stack;
 				}
 
 				enc_state = ENC_NONE;
@@ -613,7 +614,7 @@ namespace SMTPlan {
 			dur_action_vars[enc_opID];
 
 			for(int h=next_layer; h<upper_bound; h++) {
-			
+
 				// MAKE VARS
 				std::stringstream ss;
 				ss << enc_op_string << h << "_sta";
@@ -627,7 +628,7 @@ namespace SMTPlan {
 				ss.str("");
 				ss << enc_op_string << h << "_dur";
 				dur_action_vars[enc_opID].push_back(z3_context->real_const(ss.str().c_str()));
-		
+
 				// running action/process iff (remaining duration > 0)
 				z3_solver->add(run_action_vars[enc_opID][h] == (dur_action_vars[enc_opID][h] > 0));
 				z3_solver->add(!run_action_vars[enc_opID][h] == (dur_action_vars[enc_opID][h] == 0));
@@ -707,7 +708,7 @@ namespace SMTPlan {
 						mustConstraints.pop_back();
 					}
 				}
-				delete enc_event_condition_stack;				
+				delete enc_event_condition_stack;
 
 				enc_state = ENC_NONE;
 			}
@@ -1166,7 +1167,7 @@ namespace SMTPlan {
 		case VAL::E_EQUALS: com = (lhs <= rhs) && (lhs >= rhs); break;
 		}
 
-		// encode planning constraint		
+		// encode planning constraint
 		switch(enc_state) {
 
 		case ENC_GOAL:
@@ -1198,7 +1199,7 @@ namespace SMTPlan {
 				break;
 			case VAL::E_OVER_ALL:
 				z3_solver->add(implies(run_action_vars[enc_opID][enc_expression_h], com));
-				z3_solver->add(implies(end_action_vars[enc_opID][enc_expression_h], com)); 
+				z3_solver->add(implies(end_action_vars[enc_opID][enc_expression_h], com));
 				break;
 			}
 			break;
@@ -1374,7 +1375,7 @@ namespace SMTPlan {
 
 	void EncoderFluent::visit_assignment(VAL::assignment * e) {
 
-		Inst::PNE * l = new Inst::PNE(e->getFTerm(), fe);	
+		Inst::PNE * l = new Inst::PNE(e->getFTerm(), fe);
 		Inst::PNE * const lit = Inst::instantiatedOp::findPNE(l);
 
 		if (!lit) return;
@@ -1565,7 +1566,7 @@ namespace SMTPlan {
 	void EncoderFluent::visit_func_term(VAL::func_term * s) {
 		Inst::PNE * l = new Inst::PNE(s, fe);
 		Inst::PNE * const lit = Inst::instantiatedOp::findPNE(l);
-		
+
 		switch(enc_state) {
 
 		case ENC_GOAL:

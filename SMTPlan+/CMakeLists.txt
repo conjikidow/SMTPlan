@@ -18,7 +18,7 @@ configure_file (
   "${PROJECT_SOURCE_DIR}/SMTPlanConfig.h.in"
   "${PROJECT_BINARY_DIR}/SMTPlanConfig.h"
 )
- 
+
 ## add the binary tree to the include files so that we will find SMTPlanConfig.h
 include_directories("${PROJECT_BINARY_DIR}")
 

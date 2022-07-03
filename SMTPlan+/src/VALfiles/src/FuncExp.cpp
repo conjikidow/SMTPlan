@@ -45,98 +45,88 @@
   http://planning.cis.strath.ac.uk
  ----------------------------------------------------------------------------*/
 #include "FuncExp.h"
-#include "State.h"
-#include "random.h"
-#include "main.h"
 #include "RobustAnalyse.h"
+#include "State.h"
+#include "main.h"
+#include "random.h"
 
 //#define map std::map
-namespace VAL {
-  
-double
-FuncExp::evaluate(const State * s) const 
+namespace VAL
 {
-  double ans = s->evaluateFE(this);
- 
-  if(JudderPNEs && hasChangedCtsly)
-  {
-        ans += RobustPNEJudder*(1-2*getRandomNumberUniform()); //if not robustness testing this change will not be activated    
-  };
-	return ans;
-};
 
-string FuncExp::getParameter(int paraNo) const
-{          
-      int parameterNo = 1;
-		for(parameter_symbol_list::const_iterator i = fe->getArgs()->begin();
-				i != fe->getArgs()->end();++i)
-		{
-         if(paraNo == parameterNo)
-         {
-         			if(dynamic_cast<const var_symbol *>(*i))
-         			{
-         				return bindings.find(dynamic_cast<const var_symbol *>(*i))->second->getName();
-         			}
-         			else
+    double
+    FuncExp::evaluate(const State* s) const
+    {
+        double ans = s->evaluateFE(this);
 
-         			{
-         				return (*i)->getName();
+        if (JudderPNEs && hasChangedCtsly) {
+            ans += RobustPNEJudder * (1 - 2 * getRandomNumberUniform());  //if not robustness testing this change will not be activated
+        };
+        return ans;
+    };
 
-         			};
-         };
-         ++parameterNo;
+    string FuncExp::getParameter(int paraNo) const
+    {
+        int parameterNo = 1;
+        for (parameter_symbol_list::const_iterator i = fe->getArgs()->begin();
+             i != fe->getArgs()->end(); ++i) {
+            if (paraNo == parameterNo) {
+                if (dynamic_cast<const var_symbol*>(*i)) {
+                    return bindings.find(dynamic_cast<const var_symbol*>(*i))->second->getName();
+                } else
 
-		};
-      
-  return "";
-};
+                {
+                    return (*i)->getName();
+                };
+            };
+            ++parameterNo;
+        };
 
-bool FuncExp::checkConstantsMatch(const parameter_symbol_list* psl) const
-{
-  const_symbol * aConst;
+        return "";
+    };
 
-  parameter_symbol_list::const_iterator ps = psl->begin();   //from event
-  	for(parameter_symbol_list::const_iterator i = fe->getArgs()->begin(); //from func
-  				i != fe->getArgs()->end();++i)
-  {
-     if(dynamic_cast<const const_symbol*>(*ps))
-     {
+    bool FuncExp::checkConstantsMatch(const parameter_symbol_list* psl) const
+    {
+        const_symbol* aConst;
 
-       if(const var_symbol * aVariable = dynamic_cast<const var_symbol *>(*i))
-       {
-            aConst = const_cast<const_symbol*>(bindings.find(aVariable)->second);
-       }
-       else
-       {
-            aConst = const_cast<const_symbol*>(dynamic_cast<const const_symbol*>(*i));
-       };
+        parameter_symbol_list::const_iterator ps = psl->begin();                //from event
+        for (parameter_symbol_list::const_iterator i = fe->getArgs()->begin();  //from func
+             i != fe->getArgs()->end(); ++i) {
+            if (dynamic_cast<const const_symbol*>(*ps)) {
 
-       if(*ps != aConst) return false;
-     };
+                if (const var_symbol* aVariable = dynamic_cast<const var_symbol*>(*i)) {
+                    aConst = const_cast<const_symbol*>(bindings.find(aVariable)->second);
+                } else {
+                    aConst = const_cast<const_symbol*>(dynamic_cast<const const_symbol*>(*i));
+                };
 
-     ++ps;
-  };
+                if (*ps != aConst)
+                    return false;
+            };
 
-  return true;
-};
+            ++ps;
+        };
 
-ostream & operator <<(ostream & o,const FuncExp & fe) 
-{
-	fe.write(o);
-	return o;
-};
+        return true;
+    };
 
-void FuncExp::setChangedCtsly()
-{ 
- hasChangedCtsly = true;
-};
+    ostream& operator<<(ostream& o, const FuncExp& fe)
+    {
+        fe.write(o);
+        return o;
+    };
 
-Environment FuncExpFactory::nullEnv;
+    void FuncExp::setChangedCtsly()
+    {
+        hasChangedCtsly = true;
+    };
 
-FuncExpFactory::~FuncExpFactory()
-{
-	for(map<string,const FuncExp*>::const_iterator i = funcexps.begin();i != funcexps.end();++i)
-		delete const_cast<FuncExp*>(i->second);
-};
+    Environment FuncExpFactory::nullEnv;
 
-};
+    FuncExpFactory::~FuncExpFactory()
+    {
+        for (map<string, const FuncExp*>::const_iterator i = funcexps.begin(); i != funcexps.end(); ++i)
+            delete const_cast<FuncExp*>(i->second);
+    };
+
+};  // namespace VAL

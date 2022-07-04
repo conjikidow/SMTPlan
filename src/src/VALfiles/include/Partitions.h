@@ -38,107 +38,111 @@
 #include <list>
 #include <map>
 
-template<class _Key, class _PData, class _PDataCombine>
-class Partitioner {
-private:
-	typedef std::pair<_PData,list< _Key > > _pdata;
-	typedef std::map<_Key,_pdata> _pmap;
-	
-	_pmap partitiondata;
-	_PDataCombine combine;
-	int partitions;
+template <class _Key, class _PData, class _PDataCombine>
+class Partitioner
+{
+  private:
+    typedef std::pair<_PData, list<_Key>> _pdata;
+    typedef std::map<_Key, _pdata> _pmap;
 
-	struct partitionStruct {
-		_Key key;
-		partitionStruct * next;
+    _pmap partitiondata;
+    _PDataCombine combine;
+    int partitions;
 
-		partitionStruct(_Key k) : key(k), next(0) {};
-	};
+    struct partitionStruct
+    {
+        _Key key;
+        partitionStruct* next;
 
-	typedef map<_Key,partitionStruct *> PElink;
-	PElink pelements;
+        partitionStruct(_Key k)
+            : key(k), next(0){};
+    };
 
-	partitionStruct * trace(partitionStruct * p) const
-	{
-		while(p->next) p = p->next;
-		return p;
-	};
-	
-public:
-	Partitioner(_PDataCombine c) : combine(c), partitions(0)
-	{};
+    typedef map<_Key, partitionStruct*> PElink;
+    PElink pelements;
 
-	void add(_Key k,_PData p)
-	{
-		if(pelements.find(k) != pelements.end()) return;
-		list<_Key> sk;
-		sk.push_front(k);
-		partitiondata.insert(make_pair(k,make_pair(p,sk)));
-		pelements[k] = new partitionStruct(k);
-		partitions++;
-	};
+    partitionStruct* trace(partitionStruct* p) const
+    {
+        while (p->next)
+            p = p->next;
+        return p;
+    };
 
-	bool contains(_Key k) const
-	{
-		return pelements.find(k) != pelements.end();
-	};
+  public:
+    Partitioner(_PDataCombine c)
+        : combine(c), partitions(0){};
 
-	void setData(_Key k,_PData p)
-	{
-		if(pelements.find(k) == pelements.end()) 
-		{
-			add(k,p);
-		}
-		else
-		{
-			partitiondata[trace(pelements[k])->key].first = p;
-		};
-	};
+    void add(_Key k, _PData p)
+    {
+        if (pelements.find(k) != pelements.end())
+            return;
+        list<_Key> sk;
+        sk.push_front(k);
+        partitiondata.insert(make_pair(k, make_pair(p, sk)));
+        pelements[k] = new partitionStruct(k);
+        partitions++;
+    };
+
+    bool contains(_Key k) const
+    {
+        return pelements.find(k) != pelements.end();
+    };
+
+    void setData(_Key k, _PData p)
+    {
+        if (pelements.find(k) == pelements.end()) {
+            add(k, p);
+        } else {
+            partitiondata[trace(pelements[k])->key].first = p;
+        };
+    };
 
 
- 	void connect(_Key k1,_Key k2)
-	{
-		if(pelements.find(k1) == pelements.end() ||
-			pelements.find(k2) == pelements.end()) return;
-			
-		partitionStruct * e1 = trace(pelements[k1]);
-		partitionStruct * e2 = trace(pelements[k2]);
-	
-		if(e1==e2) return;
-		partitiondata[e1->key].second.merge(partitiondata[e2->key].second);
-		partitiondata[e1->key].first =
-			combine(partitiondata[e1->key].first,partitiondata[e2->key].first);
-		partitiondata.erase(e2->key);
-		e2->next = e1;
-		partitions--;
-	};		
+    void connect(_Key k1, _Key k2)
+    {
+        if (pelements.find(k1) == pelements.end() || pelements.find(k2) == pelements.end())
+            return;
 
-	_PData getData(_Key k)
-	{
-		return partitiondata.find(trace(pelements.find(k)->second)->key)->second.first;
-	};
+        partitionStruct* e1 = trace(pelements[k1]);
+        partitionStruct* e2 = trace(pelements[k2]);
 
-	int count() const
-	{
-		return partitions;
-	};
+        if (e1 == e2)
+            return;
+        partitiondata[e1->key].second.merge(partitiondata[e2->key].second);
+        partitiondata[e1->key].first =
+            combine(partitiondata[e1->key].first, partitiondata[e2->key].first);
+        partitiondata.erase(e2->key);
+        e2->next = e1;
+        partitions--;
+    };
 
-	_Key partition(_Key k) const
-	{
-		if(pelements.find(k) == pelements.end()) return k;
+    _PData getData(_Key k)
+    {
+        return partitiondata.find(trace(pelements.find(k)->second)->key)->second.first;
+    };
 
-		return trace(pelements[k])->key;
-	};
+    int count() const
+    {
+        return partitions;
+    };
 
-	typedef typename _pmap::const_iterator PSI;
-	PSI begin() {return partitiondata.begin();};
-	PSI end() {return partitiondata.end();};
-	typedef const pair<_Key, _pdata > DataSource;
-	
-	static _PData grabData(DataSource & p)
-	{
-		return p.second.first;
-	};
+    _Key partition(_Key k) const
+    {
+        if (pelements.find(k) == pelements.end())
+            return k;
+
+        return trace(pelements[k])->key;
+    };
+
+    typedef typename _pmap::const_iterator PSI;
+    PSI begin() { return partitiondata.begin(); };
+    PSI end() { return partitiondata.end(); };
+    typedef const pair<_Key, _pdata> DataSource;
+
+    static _PData grabData(DataSource& p)
+    {
+        return p.second.first;
+    };
 };
 
 

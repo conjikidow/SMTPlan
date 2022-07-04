@@ -46,36 +46,37 @@
 
 using std::deque;
 
-namespace VAL {
-
-template <class T>
-class sStack : public deque<T>
+namespace VAL
 {
-private:
-    typedef deque<T> _Base;
-public:
 
-    // push elem onto stack
-    void push(const T& elem) 
-	{
-	    _Base::push_front(elem);
-	};
+    template <class T>
+    class sStack : public deque<T>
+    {
+      private:
+        typedef deque<T> _Base;
 
-     // pop elem from stack and return it
-    T pop() 
-	{
-	    T elem(_Base::front());
-	    _Base::pop_front();
-	    return elem;
-	};
+      public:
+        // push elem onto stack
+        void push(const T& elem)
+        {
+            _Base::push_front(elem);
+        };
 
-    // return top element, leaving it on the stack
-    T& top() 
-	{
-	    return _Base::front();
-	};
-};
+        // pop elem from stack and return it
+        T pop()
+        {
+            T elem(_Base::front());
+            _Base::pop_front();
+            return elem;
+        };
 
-};
+        // return top element, leaving it on the stack
+        T& top()
+        {
+            return _Base::front();
+        };
+    };
+
+};  // namespace VAL
 
 #endif /* SSTACK_H */

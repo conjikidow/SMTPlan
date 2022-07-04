@@ -35,7 +35,7 @@
   July 2001.
 
   Strathclyde Planning Group
- 
+
  ----------------------------------------------------------------------------
 */
 
@@ -77,10 +77,10 @@ ostream & operator <<(ostream & o,const parse_category & p)
 /*-----------------------------------------------------------------------------
   ---------------------------------------------------------------------------*/
 
-void symbol::display(int ind) const 
-{ 
+void symbol::display(int ind) const
+{
     TITLE(symbol);
-    LEAF(name); 
+    LEAF(name);
 }
 
 void symbol::write(ostream & o) const
@@ -89,7 +89,7 @@ void symbol::write(ostream & o) const
 };
 
 void pddl_typed_symbol::display(int ind) const
-{ 
+{
     TITLE(symbol);
     LEAF(name); cout << "[" << this << "]\n";
     FIELD(type);
@@ -130,7 +130,7 @@ void classes_list::write(ostream & o) const
 	wcntr->write_classes_list(o,this);
 };
 
-void var_symbol::write(ostream & o) const 
+void var_symbol::write(ostream & o) const
 {
 	wcntr->write_var_symbol(o,this);
 };
@@ -318,7 +318,7 @@ void constraint_goal::display(int ind) const
 	LEAF(from);
 };
 
-void constraint_goal::write(ostream & o) const 
+void constraint_goal::write(ostream & o) const
 {
 	wcntr->write_constraint_goal(o,this);
 };
@@ -338,13 +338,13 @@ void preference::write(ostream & o) const
 void qfied_goal::display(int ind) const
 {
     TITLE(qfied_goal);
-    
+
     LABEL(qfier);
     if (qfier == E_FORALL)
 	cout << "forall";
     else if (qfier == E_EXISTS)
 	cout << "exists";
-    else 
+    else
 	cout << "?quantifier";
 
     FIELD(vars);
@@ -704,7 +704,7 @@ void domain::display(int ind) const
 //    FIELD(types);
 //    FIELD(constants);
 //    FIELD(pred_vars);
-    FIELD(predicates); 
+    FIELD(predicates);
     FIELD(classes);
     FIELD(ops);
     FIELD(drvs);
@@ -825,7 +825,7 @@ void requires(pddl_req_flag flags)
     if (!(flags & current_analysis->req))
 	current_analysis->error_list.add(
 	    E_WARNING,
-	    "Undeclared requirement " + 
+	    "Undeclared requirement " +
 	    pddl_req_flags_string(flags));
 }
 
@@ -848,7 +848,7 @@ string pddl_req_flags_string(pddl_req_flag flags)
     if (flags & E_EQUALITY) result += ":equality ";
     if (flags & E_STRIPS) result += ":strips ";
     if (flags & E_TYPING) result += ":typing ";
-    if (flags & E_DISJUNCTIVE_PRECONDS) 
+    if (flags & E_DISJUNCTIVE_PRECONDS)
 	result += ":disjunctive-preconditions ";
     if (flags & E_EXT_PRECS) result += ":existential-preconditions ";
     if (flags & E_UNIV_PRECS) result += ":universal-preconditions ";
@@ -877,7 +877,7 @@ var_symbol* var_symbol_table_stack::symbol_get(const string& name)
     var_symbol* sym= NULL;
 
     // Iterate through stack from top to bottom
-    // (may need to change direction if changing underlying 
+    // (may need to change direction if changing underlying
     // impl. of stack)
     for (iterator i=begin(); i!=end() && sym==NULL; ++i)
 	sym= (*i)->symbol_probe(name);
@@ -887,7 +887,7 @@ var_symbol* var_symbol_table_stack::symbol_get(const string& name)
 	return sym;
     else
     {
-	// Log a warning 
+	// Log a warning
 	// add new symbol to current table.
 	log_error(E_WARNING,"Undeclared variable symbol: ?" + name);
 	return top()->symbol_put(name);
@@ -904,7 +904,7 @@ var_symbol* var_symbol_table_stack::new_symbol_put(const string& name)
     var_symbol* sym = top()->symbol_probe(name);
     if(sym==NULL)
     {
-        
+
     }
 
     return top()->symbol_put(name);

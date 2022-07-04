@@ -11,35 +11,35 @@
 namespace SMTPlan
 {
 
-	struct Argument
-	{
-		std::string name;
-		bool has_value;
-		std::string help;
-	};
+    struct Argument
+    {
+        std::string name;
+        bool has_value;
+        std::string help;
+    };
 
-	struct PlannerOptions
-	{
-		bool verbose;
-		bool debug;
+    struct PlannerOptions
+    {
+        bool verbose;
+        bool debug;
 
-		// files
-		std::string domain_path;
-		std::string problem_path;
+        // files
+        std::string domain_path;
+        std::string problem_path;
 
-		// solving options
-		bool solve;
+        // solving options
+        bool solve;
 
-		// encoding options
-		int encoder;
+        // encoding options
+        int encoder;
 
-		// iterative deepening
-		int lower_bound;
-		int upper_bound;
-		int cascade_bound;
-		int step_size;
-	};
+        // iterative deepening
+        int lower_bound;
+        int upper_bound;
+        int cascade_bound;
+        int step_size;
+    };
 
-// close namespace
-}
+    // close namespace
+}  // namespace SMTPlan
 #endif

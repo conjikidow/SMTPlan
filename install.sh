@@ -13,6 +13,17 @@ else
     echo -e '\e[1;36mbuild_environment has already built.\e[m'
 fi
 
+if [ ! -f executable_base.sif ]; then
+    echo -e '\e[1;36mBuilding executable_base ...\e[m'
+    singularity build --fakeroot executable_base.sif executable_base.def
+    if [ $? -ne 0 ]; then
+        echo -e $'\e[1;31mFailed to build executable_base.\e[m'
+        exit 1
+    fi
+else
+    echo -e '\e[1;36mexecutable_base has already built.\e[m'
+fi
+
 echo -e '\e[1;36mBuilding executable ...\e[m'
 singularity build --fakeroot executable.sif executable.def
 if [ $? -ne 0 ]; then

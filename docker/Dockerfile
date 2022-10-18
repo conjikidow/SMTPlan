@@ -1,5 +1,6 @@
 # A image to build SMTPlan+
 FROM smtplan:build_environment AS builder
+LABEL note="smtplan"
 
 # Copy source files
 COPY src /home/src
@@ -13,6 +14,7 @@ RUN cd /home/src && \
 
 # A image to run SMTPlan+
 FROM ubuntu:16.04 AS runner
+LABEL note="smtplan"
 
 ENV DEBCONF_NOWARNINGS=yes
 
@@ -25,4 +27,4 @@ RUN apt-get update && \
 
 COPY --from=builder /home/src/build/SMTPlan /bin/SMTPlan
 
-ENTRYPOINT /bin/SMTPlan $@
+CMD ["bash"]

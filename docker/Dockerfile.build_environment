@@ -1,4 +1,5 @@
 FROM ubuntu:16.04
+LABEL note="smtplan"
 
 ENV DEBCONF_NOWARNINGS=yes
 

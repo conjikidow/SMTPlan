@@ -15,6 +15,7 @@ fi
 
 echo -e '\e[1;36mBuilding executable ...\e[m'
 docker build --rm --file=docker/Dockerfile -t smtplan .
+docker image prune -f --filter label=note=smtplan
 if [ $? -ne 0 ]; then
     echo -e $'\e[1;31mFailed to build executable.\e[m'
     exit 1

@@ -29,6 +29,7 @@ namespace SMTPlan
 
         // solving options
         bool solve;
+        bool keep_solving;
 
         // encoding options
         int encoder;

@@ -26,7 +26,7 @@
 #include "ptree.h"
 #include "typecheck.h"
 
-int number_of_arguments = 9;
+int number_of_arguments = 10;
 SMTPlan::Argument argument[] = {
     {"-h", false, "\tPrint this and exit."},
     {"-l", true, "number\tBegin iterative deepening at an encoding with l happenings (default 1)."},
@@ -34,6 +34,7 @@ SMTPlan::Argument argument[] = {
     {"-c", true, "number\tLimit the length of the concurrent cascading event and action chain (default 2, minimum 2)."},
     {"-e", true, "number\tChoose which encoding to use:\n\t\t\t0\tHappening-based encoding described in the paper (default)"},
     {"-s", true, "number\tIteratively deepen with a step size of s (default 1)."},
+    {"-r", false, "\tContinue solving after a plan found (use this with -u option)."},
     {"-n", false, "\tDo not solve. Output encoding in smt2 format and exit."},
     {"-v", false, "\tVerbose times."},
     {"-d", false, "\tDebug output."}};
@@ -54,7 +55,6 @@ void printUsage(char* arg)
 
 bool parseArguments(int argc, char* argv[], SMTPlan::PlannerOptions& options)
 {
-
     // file paths
     options.domain_path = argv[1];
     options.problem_path = argv[2];
@@ -63,6 +63,7 @@ bool parseArguments(int argc, char* argv[], SMTPlan::PlannerOptions& options)
     options.verbose = false;
     options.debug = false;
     options.solve = true;
+    options.keep_solving = false;
     options.lower_bound = 1;
     options.upper_bound = -1;
     options.cascade_bound = 2;
@@ -102,6 +103,8 @@ bool parseArguments(int argc, char* argv[], SMTPlan::PlannerOptions& options)
                     options.cascade_bound = 2;
             } else if (argument[j].name == "-s") {
                 options.step_size = atoi(argv[i]);
+            } else if (argument[j].name == "-r") {
+                options.keep_solving = true;
             } else if (argument[j].name == "-n") {
                 options.solve = false;
             } else if (argument[j].name == "-v") {
@@ -129,7 +132,6 @@ std::clock_t last;
 
 double getElapsed()
 {
-
     double duration = (std::clock() - last) / (double)CLOCKS_PER_SEC;
     last = std::clock();
     return duration;
@@ -137,7 +139,6 @@ double getElapsed()
 
 double getTotalElapsed()
 {
-
     double duration = (std::clock()) / (double)CLOCKS_PER_SEC;
     return duration;
 }
@@ -148,7 +149,6 @@ double getTotalElapsed()
 
 int main(int argc, char* argv[])
 {
-
     // check arguments
     if (argc < 3) {
         printUsage(argv[0]);
@@ -203,15 +203,17 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (options.verbose)
+    if (options.verbose) {
         fprintf(stdout, "Grounded:\t%f seconds\n", getElapsed());
+    }
 
     // calculate boundary expressions for continuous change
     SMTPlan::Algebraist algebraist(VAL::current_analysis, options, pi);
     algebraist.processDomain();
 
-    if (options.verbose)
+    if (options.verbose) {
         fprintf(stdout, "Algebra:\t%f seconds\n", getElapsed());
+    }
 
     // begin search loop
     SMTPlan::Encoder* encoder;
@@ -224,12 +226,14 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    for (int i = options.lower_bound; (options.upper_bound < 0 || i <= options.upper_bound); i += options.step_size) {
+    bool plan_found = false;
 
+    for (int i = options.lower_bound; (options.upper_bound < 0 || i <= options.upper_bound); i += options.step_size) {
         // generate encoding
         encoder->encode(i);
-        if (options.verbose)
+        if (options.verbose) {
             fprintf(stdout, "Encoded %i:\t%f seconds\n", i, getElapsed());
+        }
 
         // output to file
         std::ofstream pFile;
@@ -247,25 +251,36 @@ int main(int argc, char* argv[])
         if (result == z3::sat) {
             if (options.verbose) {
                 fprintf(stdout, "Solved %i:\t%f seconds\n", i, getElapsed());
-                fprintf(stdout, "Total time:\t%f seconds\n", getTotalElapsed());
+                if (!options.keep_solving) {
+                    fprintf(stdout, "Total time:\t%f seconds\n", getTotalElapsed());
+                }
                 std::cout << "\n==================================================" << std::endl;
             }
             encoder->printModel();
             if (options.verbose) {
-                std::cout << "==================================================\n"
-                          << std::endl;
+                std::cout << "==================================================" << std::endl;
             }
-            delete encoder;
-            return 0;
+
+            plan_found = true;
+            if (!options.keep_solving) {
+                delete encoder;
+                return 0;
+            }
+
+            std::cout << std::endl;
         }
 
-        if (options.verbose)
+        if (options.verbose) {
             fprintf(stdout, "Solved %i:\t%f seconds\n", i, getElapsed());
+        }
     }
 
-    fprintf(stdout, "No plan found in %i happenings\n", options.upper_bound);
-    if (options.verbose)
+    if (!plan_found) {
+        fprintf(stdout, "No plan found in %i happenings\n", options.upper_bound);
+    }
+    if (options.verbose) {
         fprintf(stdout, "Total time:\t%f seconds\n", getTotalElapsed());
+    }
 
     //delete *encoder;
 

@@ -1,38 +1,17 @@
 /**
  * This file implements the main method of SMTPlan.
  */
-#include "SMTPlan/Algebraist.h"
-#include "SMTPlan/Encoder.h"
-#include "SMTPlan/EncoderFluent.h"
-#include "SMTPlan/EncoderHappening.h"
-#include "SMTPlan/PlannerOptions.h"
-#include "SMTPlan/ProblemInfo.h"
-#include "SMTPlanConfig.h"
+#include <SMTPlan/Algebraist.hpp>
+#include <SMTPlan/Encoder.hpp>
+#include <SMTPlan/PlannerOptions.hpp>
+#include <SMTPlan/ProblemInfo.hpp>
 
-#include <algorithm>
-#include <cstdio>
-#include <ctime>
-#include <fstream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string>
-
-#include <FlexLexer.h>
-
-#include "DebugWriteController.h"
-#include "SimpleEval.h"
-#include "TIM.h"
-#include "instantiation.h"
-#include "ptree.h"
-#include "typecheck.h"
-
-int number_of_arguments = 10;
+int number_of_arguments = 9;
 SMTPlan::Argument argument[] = {
     {"-h", false, "\tPrint this and exit."},
     {"-l", true, "number\tBegin iterative deepening at an encoding with l happenings (default 1)."},
     {"-u", true, "number\tRun iterative deepening until the u is reached. Set -1 for unlimited (default -1)."},
     {"-c", true, "number\tLimit the length of the concurrent cascading event and action chain (default 2, minimum 2)."},
-    {"-e", true, "number\tChoose which encoding to use:\n\t\t\t0\tHappening-based encoding described in the paper (default)"},
     {"-s", true, "number\tIteratively deepen with a step size of s (default 1)."},
     {"-r", false, "\tContinue solving after a plan found (use this with -u option)."},
     {"-n", false, "\tDo not solve. Output encoding in smt2 format and exit."},
@@ -68,7 +47,6 @@ bool parseArguments(int argc, char* argv[], SMTPlan::PlannerOptions& options)
     options.upper_bound = -1;
     options.cascade_bound = 2;
     options.step_size = 1;
-    options.encoder = 0;
 
     // read arguments
     for (int i = 3; i < argc; i++) {
@@ -111,8 +89,6 @@ bool parseArguments(int argc, char* argv[], SMTPlan::PlannerOptions& options)
                 options.verbose = true;
             } else if (argument[j].name == "-d") {
                 options.debug = true;
-            } else if (argument[j].name == "-e") {
-                options.encoder = atoi(argv[i]);
             }
         }
         if (!argumentFound) {
@@ -216,21 +192,14 @@ int main(int argc, char* argv[])
     }
 
     // begin search loop
-    SMTPlan::Encoder* encoder;
-    if (options.encoder == 0) {
-        encoder = new SMTPlan::EncoderHappening(&algebraist, VAL::current_analysis, options, pi);
-    } else if (options.encoder == 1) {
-        encoder = new SMTPlan::EncoderFluent(&algebraist, VAL::current_analysis, options, pi);
-    } else {
-        fprintf(stdout, "Uknown encoding selected.\n");
-        return 0;
-    }
+    SMTPlan::Encoder encoder{&algebraist, VAL::current_analysis, options, pi};
 
     bool plan_found = false;
+    int i = options.lower_bound;
 
-    for (int i = options.lower_bound; (options.upper_bound < 0 || i <= options.upper_bound); i += options.step_size) {
+    while (options.upper_bound < 0 || i <= options.upper_bound) {
         // generate encoding
-        encoder->encode(i);
+        encoder.encode(i);
         if (options.verbose) {
             fprintf(stdout, "Encoded %i:\t%f seconds\n", i, getElapsed());
         }
@@ -239,14 +208,14 @@ int main(int argc, char* argv[])
         std::ofstream pFile;
         if (!options.solve) {
             // add the goal to the model
-            encoder->addGoal();
+            encoder.addGoal();
             // print model
-            std::cout << encoder->z3_solver->to_smt2() << std::endl;
+            std::cout << encoder.z3_solver->to_smt2() << std::endl;
             return 0;
         }
 
         // solve
-        z3::check_result result = encoder->solve();
+        z3::check_result result = encoder.solve();
 
         if (result == z3::sat) {
             if (options.verbose) {
@@ -256,18 +225,21 @@ int main(int argc, char* argv[])
                 }
                 std::cout << "\n==================================================" << std::endl;
             }
-            encoder->printModel();
+            encoder.printModel();
             if (options.verbose) {
                 std::cout << "==================================================" << std::endl;
             }
 
             plan_found = true;
-            if (!options.keep_solving) {
-                delete encoder;
+            if (options.keep_solving) {
+                encoder.exceptPreviousModel();
+            } else {
                 return 0;
             }
 
             std::cout << std::endl;
+        } else {
+            i += options.step_size;
         }
 
         if (options.verbose) {
@@ -281,8 +253,6 @@ int main(int argc, char* argv[])
     if (options.verbose) {
         fprintf(stdout, "Total time:\t%f seconds\n", getTotalElapsed());
     }
-
-    //delete *encoder;
 
     return 0;
 }

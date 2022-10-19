@@ -4,6 +4,9 @@
  * integration and differentiation of continuous change in the PDDL
  * domain, before the problem is encoded.
  */
+
+#pragma once
+
 #include <algorithm>
 #include <cstdio>
 #include <iostream>
@@ -15,23 +18,21 @@
 #include <piranha/math.hpp>
 #include <piranha/piranha.hpp>
 
-#include "FastEnvironment.h"
-#include "TIM.h"
-#include "VisitController.h"
-#include "instantiation.h"
-#include "ptree.h"
+#include <VALfiles/FastEnvironment.h>
+#include <VALfiles/TIM.h>
+#include <VALfiles/VisitController.h>
+#include <VALfiles/instantiation.h>
+#include <VALfiles/ptree.h>
 
-#include "SMTPlan/PlannerOptions.h"
-#include "SMTPlan/ProblemInfo.h"
+#include "PlannerOptions.hpp"
+#include "ProblemInfo.hpp"
 
-#ifndef KCL_algebraist
-#define KCL_algebraist
-
-// polynomials over R||Q
-using pexpr = piranha::polynomial<piranha::rational, piranha::monomial<int>>;
 
 namespace SMTPlan
 {
+
+    // polynomials over R||Q
+    using pexpr = piranha::polynomial<piranha::rational, piranha::monomial<int>>;
 
     struct SingleFlow
     {
@@ -164,5 +165,3 @@ namespace SMTPlan
     };
 
 }  // namespace SMTPlan
-
-#endif

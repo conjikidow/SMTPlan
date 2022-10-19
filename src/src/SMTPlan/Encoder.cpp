@@ -1,13 +1,13 @@
-#include "SMTPlan/EncoderFluent.h"
+#include "Encoder.hpp"
 
-/* implementation of SMTPlan::EncoderFluent */
+/* implementation of SMTPlan::Encoder */
 namespace SMTPlan
 {
 
     /**
 	 * attempt to solve the encoding
 	 */
-    z3::check_result EncoderFluent::solve()
+    z3::check_result Encoder::solve()
     {
         z3::check_result result = z3_solver->check(goal_expression.size(), &(*goal_expression.begin()));
         return result;
@@ -16,11 +16,16 @@ namespace SMTPlan
     /**
 	 * prints the current model if there is one
 	 */
-    void EncoderFluent::printModel()
+    void Encoder::printModel()
     {
         z3::model m = z3_solver->get_model();
         z3::expr t = z3_context->bool_val(true);
         z3::set_param("pp.decimal", true);
+
+        for (int h = 0; h < upper_bound; h++) {
+            std::cout << h << " " << time_vars[h] << " " << m.eval(time_vars[h]) << std::endl;
+            std::cout << h << " " << duration_vars[h] << " " << m.eval(duration_vars[h]) << std::endl;
+        }
 
         //print plan
         for (int h = 0; h < upper_bound; h++) {
@@ -28,20 +33,31 @@ namespace SMTPlan
             std::vector<int>::iterator ait = action_ids.begin();
             for (; ait != action_ids.end(); ait++) {
                 z3::expr v = m.eval(sta_action_vars[*ait][h]);
-                if (eq(v, t))
-                    std::cout << m.eval(time_vars[h]) << ":\t" << sta_action_vars[*ait][h] << " [" << m.eval(dur_action_vars[*ait][h]) << "]" << std::endl;
+
+                if (eq(v, t)) {
+                    // time
+                    std::cout << h << " " << time_vars[h] << " " << m.eval(time_vars[h]) << ":\t";
+                    // action
+                    std::stringstream ss;
+                    ss << sta_action_vars[*ait][h];
+                    std::string a = ss.str();
+                    std::cout << a.substr(a.find("("), a.find(")") - a.find("(") + 1);
+                    // duration
+                    std::cout << " [" << m.eval(dur_action_vars[*ait][h]) << "]" << std::endl;
+                }
             }
 
             if (opt->debug) {
 
-                // run
-                ait = action_ids.begin();
-                for (; ait != action_ids.end(); ait++) {
-                    if (run_action_vars.find(*ait) == run_action_vars.end())
-                        continue;
-                    z3::expr v = m.eval(run_action_vars[*ait][h]);
-                    if (eq(v, t))
-                        std::cout << m.eval(time_vars[h]) << ":\t" << run_action_vars[*ait][h] << "\t(running)" << std::endl;
+                // events
+                std::map<int, std::vector<std::vector<z3::expr>>>::iterator eit = event_vars.begin();
+                for (; eit != event_vars.end(); eit++) {
+                    for (int b = 0; b < opt->cascade_bound - 1; b++) {
+                        z3::expr v = m.eval(eit->second[h][b]);
+                        if (eq(v, t)) {
+                            std::cout << m.eval(time_vars[h]) << ":\t" << eit->second[h][b] << " [0.0]" << std::endl;
+                        }
+                    }
                 }
 
                 // end
@@ -51,30 +67,43 @@ namespace SMTPlan
                         continue;
                     z3::expr v = m.eval(end_action_vars[*ait][h]);
                     if (eq(v, t))
-                        std::cout << m.eval(time_vars[h]) << ":\t" << end_action_vars[*ait][h] << "\t(end)" << std::endl;
+                        std::cout << m.eval(time_vars[h]) << ":\t  " << end_action_vars[*ait][h] << "\t(end)" << std::endl;
+                }
+
+                // start
+                ait = action_ids.begin();
+                for (; ait != action_ids.end(); ait++) {
+                    if (sta_action_vars.find(*ait) == sta_action_vars.end())
+                        continue;
+                    z3::expr v = m.eval(sta_action_vars[*ait][h]);
+                    if (eq(v, t))
+                        std::cout << m.eval(time_vars[h]) << ":\t  " << sta_action_vars[*ait][h] << "\t(start)" << std::endl;
+                }
+
+                // run
+                // ait = action_ids.begin();
+                // for (; ait != action_ids.end(); ait++) {
+                //     // if (run_action_vars.find(*ait) == run_action_vars.end())
+                //     //     continue;
+                //     z3::expr v = m.eval(run_action_vars[*ait][h]);
+                //     if (eq(v, t))
+                //         std::cout << m.eval(time_vars[h]) << ":\t  " << run_action_vars[*ait][h] << "\t(running)" << std::endl;
+                // }
+
+                std::vector<std::vector<std::vector<z3::expr>>>::iterator lit = event_cascade_literal_vars.begin();
+                for (; lit != event_cascade_literal_vars.end(); lit++) {
+                    for (int b = 0; b < opt->cascade_bound; b++) {
+                        z3::expr v = m.eval((*lit)[h][b]);
+                        if (eq(v, t))
+                            std::cout << m.eval(time_vars[h]) << ":\t    " << (*lit)[h][b] << std::endl;
+                    }
                 }
 
                 std::vector<std::vector<std::vector<z3::expr>>>::iterator fit = event_cascade_function_vars.begin();
                 for (; fit != event_cascade_function_vars.end(); fit++) {
                     for (int b = 0; b < opt->cascade_bound; b++) {
-                        std::cout << m.eval(time_vars[h]) << ":\t" << (*fit)[h][b] << " == " << m.eval((*fit)[h][b]) << std::endl;
+                        std::cout << m.eval(time_vars[h]) << ":\t    " << (*fit)[h][b] << " == " << m.eval((*fit)[h][b]) << std::endl;
                     }
-                }
-            }
-        }
-        if (opt->debug) {
-
-            Inst::LiteralStore::iterator litItr = Inst::instantiatedOp::literalsBegin();
-            const Inst::LiteralStore::iterator litEnd = Inst::instantiatedOp::literalsEnd();
-            for (; litItr != litEnd; ++litItr) {
-                std::cout << std::endl;
-                Inst::Literal* const currLit = *litItr;
-                for (int h = 0; h < literal_bound; h++) {
-                    std::cout << m.eval(literal_time_vars[currLit->getID()][h]) << ":\t" << event_cascade_literal_vars[currLit->getID()][h][0];
-                    for (int b = 0; b < opt->cascade_bound; b++) {
-                        std::cout << "\t" << m.eval(event_cascade_literal_vars[currLit->getID()][h][b]);
-                    }
-                    std::cout << std::endl;
                 }
             }
         }
@@ -84,22 +113,20 @@ namespace SMTPlan
     /**
 	 * Main encode method
 	 */
-    bool EncoderFluent::encode(int H)
+    bool Encoder::encode(int H)
     {
 
         upper_bound = H;
-        literal_bound = 3;
 
         // declare all variables
-        encodeHeader(H, literal_bound);
+        encodeHeader(H);
 
         // timing constraints
         encodeTimings(H);
 
         // known states
         encodeInitialState();
-
-        encodeGoalState(H, literal_bound);
+        encodeGoalState(H);
 
         // action constraints
         enc_make_op_vars = true;
@@ -136,7 +163,7 @@ namespace SMTPlan
             if (problem_info->staticPredicateMap[currLit->getHead()->getName()])
                 continue;
             enc_litID = currLit->getID();
-            encodeLiteralVariableSupport(H, literal_bound);
+            encodeLiteralVariableSupport(H);
         }
 
         // function constraints
@@ -151,14 +178,13 @@ namespace SMTPlan
             encodeFunctionFlows(H);
         }
         next_layer = upper_bound;
-        next_literal_layer = literal_bound;
     }
 
     /*--------*/
     /* header */
     /*--------*/
 
-    void EncoderFluent::encodeHeader(int H, int L)
+    void Encoder::encodeHeader(int H)
     {
 
         // timings
@@ -188,23 +214,16 @@ namespace SMTPlan
                 simpleTILDelEffects[currLit->getID()];
 
                 event_cascade_literal_vars[currLit->getID()];
-                literal_time_vars[currLit->getID()];
+            }
 
-                // one SMT var for each fluent*change
-                for (int l = 0; l < L; l++) {
-
-                    std::vector<z3::expr> literalVars;
-                    for (int b = 0; b < opt->cascade_bound; b++) {
-                        std::stringstream ss;
-                        ss << (*currLit) << l << "_" << b;
-                        literalVars.push_back(z3_context->bool_const(ss.str().c_str()));
-                    }
-                    event_cascade_literal_vars[currLit->getID()].push_back(literalVars);
-
+            for (int h = next_layer; h < H; h++) {
+                std::vector<z3::expr> literalVars;
+                for (int b = 0; b < opt->cascade_bound; b++) {
                     std::stringstream ss;
-                    ss << "timeof_" << (*currLit) << l;
-                    literal_time_vars[currLit->getID()].push_back(z3_context->real_const(ss.str().c_str()));
+                    ss << (*currLit) << h << "_" << b;
+                    literalVars.push_back(z3_context->bool_const(ss.str().c_str()));
                 }
+                event_cascade_literal_vars[currLit->getID()].push_back(literalVars);
             }
         }
 
@@ -238,7 +257,7 @@ namespace SMTPlan
 	 * Constraints P3--P4 (A Compilation of the Full PDDL+ Language into SMT)
 	 * encodes the happening time constraints
 	 */
-    void EncoderFluent::encodeTimings(int H)
+    void Encoder::encodeTimings(int H)
     {
 
         for (int h = next_layer; h < H; h++) {
@@ -246,9 +265,8 @@ namespace SMTPlan
                 z3_solver->add(time_vars[h] == 0);
             } else {
                 z3_solver->add(time_vars[h] == (time_vars[h - 1] + duration_vars[h - 1]));
-                z3_solver->add(time_vars[h] > (time_vars[h - 1]));
             }
-            z3_solver->add(duration_vars[h] >= z3_context->real_val("1/10"));
+            z3_solver->add(duration_vars[h] >= 0);
         }
     }
 
@@ -256,7 +274,7 @@ namespace SMTPlan
 	 * Constraints P1 (A Compilation of the Full PDDL+ Language into SMT)
 	 * encodes the initial state
 	 */
-    void EncoderFluent::encodeInitialState()
+    void Encoder::encodeInitialState()
     {
 
         enc_state = ENC_INIT;
@@ -280,9 +298,9 @@ namespace SMTPlan
 
                 if (!problem_info->staticPredicateMap[lit->getHead()->getName()]) {
                     z3_solver->add(event_cascade_literal_vars[lit->getID()][0][0]);
-                    z3_solver->add(literal_time_vars[lit->getID()][0] == 0);
                 }
-
+                if (initialState.size() <= lit->getID())
+                    std::cout << initialState.size() << " AND " << lit->getID() << std::endl;
                 initialState[lit->getID()] = true;
                 delete l;
             }
@@ -295,7 +313,6 @@ namespace SMTPlan
                     continue;
                 if (!initialState[currLit->getID()]) {
                     z3_solver->add(!event_cascade_literal_vars[currLit->getID()][0][0]);
-                    z3_solver->add(literal_time_vars[currLit->getID()][0] == 0);
                 }
             }
 
@@ -321,8 +338,6 @@ namespace SMTPlan
                 } else {
                     z3_solver->add(event_cascade_function_vars[enc_pneID][0][0] == expr);
                 }
-
-                initialState[lit->getID()] = true;
                 delete l;
             }
         }
@@ -334,26 +349,36 @@ namespace SMTPlan
 	 * Constraints P2 (A Compilation of the Full PDDL+ Language into SMT)
 	 * encodes the goal state
 	 */
-    void EncoderFluent::encodeGoalState(int H, int L)
+    void Encoder::encodeGoalState(int H)
     {
 
         enc_state = ENC_GOAL;
         enc_expression_b = opt->cascade_bound - 1;
         enc_expression_h = upper_bound - 1;
-        enc_expression_l = literal_bound - 1;
         goal_expression.clear();
 
         VAL::goal* goal = val_analysis->the_problem->the_goal;
         goal->visit(this);
-
         enc_state = ENC_NONE;
+    }
+
+    void Encoder::exceptPreviousModel()
+    {
+        static int previous_next_layer = 0;
+        if (next_layer == previous_next_layer) {
+            z3::model m = z3_solver->get_model();
+            // z3_solver->add(duration_vars[0] < 0);
+        } else {
+            // z3_solver->reset();
+            previous_next_layer = next_layer;
+        }
     }
 
     /*------*/
     /* TILS */
     /*------*/
 
-    void EncoderFluent::visit_timed_initial_literal(VAL::timed_initial_literal* til)
+    void Encoder::visit_timed_initial_literal(VAL::timed_initial_literal* til)
     {
 
         til_vars[enc_tilID];
@@ -383,7 +408,6 @@ namespace SMTPlan
             enc_state = ENC_TIL_EFFECT;
             enc_expression_b = 0;
             enc_expression_h = h;
-            enc_expression_l = 0;
             til->effs->visit(this);
             enc_state = ENC_NONE;
         }
@@ -397,7 +421,7 @@ namespace SMTPlan
 	 * Constraints H9-H10, H14-15, P7-P8 (A Compilation of the Full PDDL+ Language into SMT)
 	 * encodes durative action constraints
 	 */
-    void EncoderFluent::visit_durative_action(VAL::durative_action* da)
+    void Encoder::visit_durative_action(VAL::durative_action* da)
     {
 
         if (enc_make_op_vars) {
@@ -412,7 +436,6 @@ namespace SMTPlan
             }
 
             for (int h = next_layer; h < upper_bound; h++) {
-
                 // MAKE VARS
                 std::stringstream ss;
                 ss << enc_op_string << h << "_sta";
@@ -433,8 +456,7 @@ namespace SMTPlan
 
                 // remaining duration (i) = remaining duration (i-1) - duration (i)
                 if (h > 0) {
-                    z3_solver->add(implies(run_action_vars[enc_opID][h - 1],
-                        dur_action_vars[enc_opID][h] == (dur_action_vars[enc_opID][h - 1] - duration_vars[h - 1])));
+                    z3_solver->add(implies(run_action_vars[enc_opID][h - 1], dur_action_vars[enc_opID][h] == (dur_action_vars[enc_opID][h - 1] - duration_vars[h - 1])));
                 }
 
                 // remaining duration = action duration
@@ -453,15 +475,9 @@ namespace SMTPlan
                     z3_solver->add(implies(!run_action_vars[enc_opID][h], !sta_action_vars[enc_opID][h]));
                 }
             }
-
         } else {
-            // TODO: ensure that this is the correct cascade depth for action effects (opt->cascade_bound - 2;)
-            enc_expression_l = 0;
-            enc_expression_b = 1;
-            if (opt->cascade_bound < 2)
-                enc_expression_b = 0;
+            enc_expression_b = opt->cascade_bound - 2;
             for (enc_expression_h = next_layer; enc_expression_h < upper_bound; enc_expression_h++) {
-
                 // duration
                 enc_state = ENC_ACTION_DURATION;
                 da->dur_constraint->visit(this);
@@ -482,7 +498,7 @@ namespace SMTPlan
         }
     }
 
-    void EncoderFluent::visit_action(VAL::action* o)
+    void Encoder::visit_action(VAL::action* o)
     {
 
         if (enc_make_op_vars) {
@@ -508,11 +524,8 @@ namespace SMTPlan
                 z3_solver->add(dur_action_vars[enc_opID][h] == 0);
             }
         } else {
-            // TODO: ensure that this is the correct cascade depth for action effects (opt->cascade_bound - 2;)
-            enc_expression_l = 0;
-            enc_expression_b = 1;
-            if (opt->cascade_bound < 2)
-                enc_expression_b = 0;
+
+            enc_expression_b = opt->cascade_bound - 2;
             for (enc_expression_h = next_layer; enc_expression_h < upper_bound; enc_expression_h++) {
 
                 enc_eff_time = VAL::E_AT_START;
@@ -535,7 +548,7 @@ namespace SMTPlan
     /* events */
     /*--------*/
 
-    void EncoderFluent::visit_event(VAL::event* e)
+    void Encoder::visit_event(VAL::event* e)
     {
 
         if (enc_make_op_vars) {
@@ -557,7 +570,6 @@ namespace SMTPlan
                 enc_eff_time = VAL::E_AT_START;
 
                 // conditions (sets up mutex lists)
-                enc_expression_l = 0;
                 for (enc_expression_b = 0; enc_expression_b < opt->cascade_bound - 1; enc_expression_b++) {
 
                     // effects (sets up add/delete effect lists)
@@ -617,10 +629,9 @@ namespace SMTPlan
     /* processes */
     /*-----------*/
 
-    void EncoderFluent::visit_process(VAL::process* p)
+    void Encoder::visit_process(VAL::process* p)
     {
 
-        enc_expression_l = 0;
         if (enc_make_op_vars) {
             sta_action_vars[enc_opID];
             run_action_vars[enc_opID];
@@ -688,6 +699,7 @@ namespace SMTPlan
                 // make process trigger
                 if (p->precondition)
                     p->precondition->visit(this);
+
                 z3_solver->add(run_action_vars[enc_opID][enc_expression_h] == mk_and(*enc_event_condition_stack));
 
                 if (enc_expression_h > 0) {
@@ -717,14 +729,12 @@ namespace SMTPlan
                         enc_musts_expression_stack.pop_back();
                         current.pop_back();
                     }
-
                     while (mustConstraints.size() > 0) {
                         z3_solver->add(implies(run_action_vars[enc_opID][enc_expression_h - 1], mustConstraints.back()));
                         mustConstraints.pop_back();
                     }
                 }
                 delete enc_event_condition_stack;
-
                 enc_state = ENC_NONE;
             }
         }
@@ -738,80 +748,50 @@ namespace SMTPlan
 	 * Constraints H1--H4, P5-P6 (A Compilation of the Full PDDL+ Language into SMT)
 	 * Encodes variable support in the form of explanatory frame axioms.
 	 */
-    void EncoderFluent::encodeLiteralVariableSupport(int H, int L)
+    void Encoder::encodeLiteralVariableSupport(int H)
     {
 
-        for (int l = next_literal_layer; l < L; l++) {
-
-            // total ordering of literal time vars
-            if (l > 0) {
-                z3_solver->add(literal_time_vars[enc_litID][l] > literal_time_vars[enc_litID][l - 1]);
-            }
-
-            // esure that the literal time var coincides with a happening
-            z3::expr_vector timeargs(*z3_context);
-            for (int h = 0; h < upper_bound; h++) {
-                timeargs.push_back(literal_time_vars[enc_litID][l] == time_vars[h]);
-            }
-            timeargs.push_back(literal_time_vars[enc_litID][l] > time_vars[upper_bound - 1]);
-            z3_solver->add(mk_or(timeargs));
-
+        for (int h = next_layer; h < H; h++) {
 
             for (int b = 1; b < opt->cascade_bound; b++) {
 
                 // remain TRUE
                 z3::expr_vector addargs(*z3_context);
-                addargs.push_back(event_cascade_literal_vars[enc_litID][l][b - 1]);
+                addargs.push_back(event_cascade_literal_vars[enc_litID][h][b - 1]);
 
                 // event enablers
                 if (simpleEventAddEffects[enc_litID].size() > 0) {
                     std::vector<int>::const_iterator iterator = simpleEventAddEffects[enc_litID].begin();
                     for (; iterator != simpleEventAddEffects[enc_litID].end(); ++iterator) {
-                        z3::expr event_ife = z3_context->bool_val(false);
-                        for (int h = upper_bound - 1; h >= 0; h--) {
-                            event_ife = z3::ite(literal_time_vars[enc_litID][l] == time_vars[h], event_vars[(*iterator)][h][b - 1], event_ife);
-                        }
-                        addargs.push_back(event_ife);
+                        addargs.push_back(event_vars[(*iterator)][h][b - 1]);
                     }
                 }
 
                 // action enablers
-                if (b == 1) {  // opt->cascade_bound - 1) {
+                if (b == opt->cascade_bound - 1) {
                     if (simpleStartAddEffects[enc_litID].size() > 0 || simpleEndAddEffects[enc_litID].size() > 0) {
                         std::vector<int>::const_iterator iterator = simpleStartAddEffects[enc_litID].begin();
                         for (; iterator != simpleStartAddEffects[enc_litID].end(); ++iterator) {
-                            z3::expr action_ife = z3_context->bool_val(false);
-                            for (int h = upper_bound - 1; h >= 0; h--) {
-                                action_ife = z3::ite(literal_time_vars[enc_litID][l] == time_vars[h], sta_action_vars[(*iterator)][h], action_ife);
-                            }
-                            addargs.push_back(action_ife);
+                            addargs.push_back(sta_action_vars[(*iterator)][h]);
                         }
                         iterator = simpleEndAddEffects[enc_litID].begin();
                         for (; iterator != simpleEndAddEffects[enc_litID].end(); ++iterator) {
-                            z3::expr action_ife = z3_context->bool_val(false);
-                            for (int h = upper_bound - 1; h >= 0; h--) {
-                                action_ife = z3::ite(literal_time_vars[enc_litID][l] == time_vars[h], end_action_vars[(*iterator)][h], action_ife);
-                            }
-                            addargs.push_back(action_ife);
+                            addargs.push_back(end_action_vars[(*iterator)][h]);
                         }
                     }
                 }
-                z3_solver->add(implies(event_cascade_literal_vars[enc_litID][l][b], mk_or(addargs)));
+                z3_solver->add(implies(event_cascade_literal_vars[enc_litID][h][b], mk_or(addargs)));
 
 
                 // remain FALSE
                 z3::expr_vector delargs(*z3_context);
-                delargs.push_back(!event_cascade_literal_vars[enc_litID][l][b - 1]);
+                delargs.push_back(!event_cascade_literal_vars[enc_litID][h][b - 1]);
 
                 // event disablers
                 if (simpleEventDelEffects[enc_litID].size() > 0) {
                     std::vector<int>::const_iterator iterator = simpleEventDelEffects[enc_litID].begin();
                     for (; iterator != simpleEventDelEffects[enc_litID].end(); ++iterator) {
-                        z3::expr event_ife = z3_context->bool_val(false);
-                        for (int h = upper_bound - 1; h >= 0; h--) {
-                            event_ife = z3::ite(literal_time_vars[enc_litID][l] == time_vars[h], event_vars[(*iterator)][h][b - 1], event_ife);
-                        }
-                        delargs.push_back(event_ife);
+                        delargs.push_back(event_vars[(*iterator)][h][b - 1]);
                     }
                 }
 
@@ -820,63 +800,48 @@ namespace SMTPlan
                     if (simpleStartDelEffects[enc_litID].size() > 0 || simpleEndDelEffects[enc_litID].size() > 0) {
                         std::vector<int>::const_iterator iterator = simpleStartDelEffects[enc_litID].begin();
                         for (; iterator != simpleStartDelEffects[enc_litID].end(); ++iterator) {
-                            z3::expr action_ife = z3_context->bool_val(false);
-                            for (int h = upper_bound - 1; h >= 0; h--) {
-                                action_ife = z3::ite(literal_time_vars[enc_litID][l] == time_vars[h], sta_action_vars[(*iterator)][h], action_ife);
-                            }
-                            delargs.push_back(action_ife);
+                            delargs.push_back(sta_action_vars[(*iterator)][h]);
                         }
                         iterator = simpleEndDelEffects[enc_litID].begin();
                         for (; iterator != simpleEndDelEffects[enc_litID].end(); ++iterator) {
-                            z3::expr action_ife = z3_context->bool_val(false);
-                            for (int h = upper_bound - 1; h >= 0; h--) {
-                                action_ife = z3::ite(literal_time_vars[enc_litID][l] == time_vars[h], end_action_vars[(*iterator)][h], action_ife);
-                            }
-                            delargs.push_back(action_ife);
+                            delargs.push_back(end_action_vars[(*iterator)][h]);
                         }
                     }
                 }
-                z3_solver->add(implies(!event_cascade_literal_vars[enc_litID][l][b], mk_or(delargs)));
+                z3_solver->add(implies(!event_cascade_literal_vars[enc_litID][h][b], mk_or(delargs)));
             }
 
             // between happenings
-            if (l <= 0)
+            if (h <= 0)
                 continue;
 
-            // must change
-            //			z3_solver->add(implies(literal_time_vars[enc_litID][l] <= time_vars[upper_bound-1], implies( event_cascade_literal_vars[enc_litID][l][0],  event_cascade_literal_vars[enc_litID][l-1][opt->cascade_bound-1] )));
-            //			z3_solver->add(implies(literal_time_vars[enc_litID][l] <= time_vars[upper_bound-1], implies(!event_cascade_literal_vars[enc_litID][l][0], !event_cascade_literal_vars[enc_litID][l-1][opt->cascade_bound-1] )));
-            z3_solver->add(implies(event_cascade_literal_vars[enc_litID][l][0], event_cascade_literal_vars[enc_litID][l - 1][opt->cascade_bound - 1]));
-            z3_solver->add(implies(!event_cascade_literal_vars[enc_litID][l][0], !event_cascade_literal_vars[enc_litID][l - 1][opt->cascade_bound - 1]));
-            /*
-			z3::expr_vector addargs(*z3_context);
-			addargs.push_back(event_cascade_literal_vars[enc_litID][l-1][opt->cascade_bound-1]);
+            z3::expr_vector addargs(*z3_context);
+            addargs.push_back(event_cascade_literal_vars[enc_litID][h - 1][opt->cascade_bound - 1]);
 
-			// TIL enablers
-			if(simpleTILAddEffects[enc_litID].size()>0) {
-				std::vector<int>::const_iterator iterator = simpleTILAddEffects[enc_litID].begin();
-				for (; iterator != simpleTILAddEffects[enc_litID].end(); ++iterator) {
-					addargs.push_back(til_vars[(*iterator)][h]);
-				}
-			}
+            // TIL enablers
+            if (simpleTILAddEffects[enc_litID].size() > 0) {
+                std::vector<int>::const_iterator iterator = simpleTILAddEffects[enc_litID].begin();
+                for (; iterator != simpleTILAddEffects[enc_litID].end(); ++iterator) {
+                    addargs.push_back(til_vars[(*iterator)][h]);
+                }
+            }
 
-			// become/remain TRUE
-			z3_solver->add(implies( event_cascade_literal_vars[enc_litID][h][0], mk_or(addargs) ));
+            // become/remain TRUE
+            z3_solver->add(implies(event_cascade_literal_vars[enc_litID][h][0], mk_or(addargs)));
 
-			z3::expr_vector delargs(*z3_context);
-			delargs.push_back(!event_cascade_literal_vars[enc_litID][h-1][opt->cascade_bound-1]);
+            z3::expr_vector delargs(*z3_context);
+            delargs.push_back(!event_cascade_literal_vars[enc_litID][h - 1][opt->cascade_bound - 1]);
 
-			// TIL disablers
-			if(simpleTILDelEffects[enc_litID].size()>0) {
-				std::vector<int>::const_iterator iterator = simpleTILDelEffects[enc_litID].begin();
-				for (; iterator != simpleTILDelEffects[enc_litID].end(); ++iterator) {
-					delargs.push_back(til_vars[(*iterator)][h]);
-				}
-			}
+            // TIL disablers
+            if (simpleTILDelEffects[enc_litID].size() > 0) {
+                std::vector<int>::const_iterator iterator = simpleTILDelEffects[enc_litID].begin();
+                for (; iterator != simpleTILDelEffects[enc_litID].end(); ++iterator) {
+                    delargs.push_back(til_vars[(*iterator)][h]);
+                }
+            }
 
-			// become/remain FALSE
-			z3_solver->add(implies( !event_cascade_literal_vars[enc_litID][h][0], mk_or(delargs) ));
-*/
+            // become/remain FALSE
+            z3_solver->add(implies(!event_cascade_literal_vars[enc_litID][h][0], mk_or(delargs)));
         }
     }
 
@@ -884,7 +849,7 @@ namespace SMTPlan
 	 * Constraints H5--H6, P5-P6 (A Compilation of the Full PDDL+ Language into SMT)
 	 * Encodes variable support in the form of explanatory frame axioms.
 	 */
-    void EncoderFluent::encodeFunctionVariableSupport(int H)
+    void Encoder::encodeFunctionVariableSupport(int H)
     {
 
         for (int h = next_layer; h < H; h++) {
@@ -923,7 +888,7 @@ namespace SMTPlan
 
     /**
 	 */
-    void EncoderFluent::encodeFunctionFlows(int H)
+    void Encoder::encodeFunctionFlows(int H)
     {
 
         FunctionFlow* flow = algebraist->function_flow[enc_pneID];
@@ -999,50 +964,43 @@ namespace SMTPlan
     /* goals */
     /*-------*/
 
-    void EncoderFluent::visit_conj_goal(VAL::conj_goal* c)
+    void Encoder::visit_conj_goal(VAL::conj_goal* c)
     {
         c->getGoals()->visit(this);
     }
 
-    void EncoderFluent::visit_timed_goal(VAL::timed_goal* c)
+    void Encoder::visit_timed_goal(VAL::timed_goal* c)
     {
         enc_cond_time = c->getTime();
         c->getGoal()->visit(this);
     }
 
-    void EncoderFluent::visit_neg_goal(VAL::neg_goal* c)
+    void Encoder::visit_neg_goal(VAL::neg_goal* c)
     {
         enc_cond_neg = !enc_cond_neg;
         c->getGoal()->visit(this);
         enc_cond_neg = !enc_cond_neg;
     }
 
-    void EncoderFluent::visit_simple_goal(VAL::simple_goal* c)
+    void Encoder::visit_simple_goal(VAL::simple_goal* c)
     {
+
         Inst::Literal* l = new Inst::Literal(c->getProp(), fe);
         Inst::Literal* const lit = Inst::instantiatedOp::findLiteral(l);
 
-        if (!lit)
+        if (!lit) {
+            if (enc_state == ENC_GOAL)
+                goal_expression.push_back(z3_context->bool_val(false));
             return;
-
-        z3::expr pos_ife = z3_context->bool_val(false);
-        z3::expr neg_ife = z3_context->bool_val(false);
+        }
 
         switch (enc_state) {
 
             case ENC_GOAL:
                 if (enc_cond_neg) {
-                    z3::expr goal_ite = z3_context->bool_val(false);
-                    for (int l = 0; l < literal_bound; l++) {
-                        goal_ite = z3::ite(literal_time_vars[lit->getID()][l] == time_vars[upper_bound - 1], !event_cascade_literal_vars[lit->getID()][l][opt->cascade_bound - 1], goal_ite);
-                    }
-                    goal_expression.push_back(goal_ite);
+                    goal_expression.push_back(!event_cascade_literal_vars[lit->getID()][(upper_bound - 1)][opt->cascade_bound - 1]);
                 } else {
-                    z3::expr goal_ite = z3_context->bool_val(false);
-                    for (int l = 0; l < literal_bound; l++) {
-                        goal_ite = z3::ite(literal_time_vars[lit->getID()][l] == time_vars[upper_bound - 1], event_cascade_literal_vars[lit->getID()][l][opt->cascade_bound - 1], goal_ite);
-                    }
-                    goal_expression.push_back(goal_ite);
+                    goal_expression.push_back(event_cascade_literal_vars[lit->getID()][(upper_bound - 1)][opt->cascade_bound - 1]);
                 }
                 break;
 
@@ -1054,27 +1012,18 @@ namespace SMTPlan
                     break;
                 }
 
-                for (int l = 0; l < literal_bound; l++) {
-                    pos_ife = z3::ite(literal_time_vars[lit->getID()][l] == time_vars[enc_expression_h], event_cascade_literal_vars[lit->getID()][l][enc_expression_b], pos_ife);
-                    neg_ife = z3::ite(literal_time_vars[lit->getID()][l] == time_vars[enc_expression_h], !event_cascade_literal_vars[lit->getID()][l][enc_expression_b], neg_ife);
-                }
                 if (enc_cond_neg) {
-                    enc_event_condition_stack->push_back(neg_ife);
-                    enc_musts_discrete_stack.push_back(pos_ife);
+                    enc_event_condition_stack->push_back(!event_cascade_literal_vars[lit->getID()][enc_expression_h][enc_expression_b]);
+                    enc_musts_discrete_stack.push_back(event_cascade_literal_vars[lit->getID()][enc_expression_h][enc_expression_b]);
                 } else {
-                    enc_event_condition_stack->push_back(pos_ife);
-                    enc_musts_discrete_stack.push_back(neg_ife);
+                    enc_event_condition_stack->push_back(event_cascade_literal_vars[lit->getID()][enc_expression_h][enc_expression_b]);
+                    enc_musts_discrete_stack.push_back(!event_cascade_literal_vars[lit->getID()][enc_expression_h][enc_expression_b]);
                 }
                 break;
 
             case ENC_SIMPLE_ACTION_CONDITION:
-
                 if (enc_cond_neg) {
-                    z3::expr con_ife = z3_context->bool_val(false);
-                    for (int l = 0; l < literal_bound; l++) {
-                        con_ife = z3::ite(literal_time_vars[lit->getID()][l] == time_vars[enc_expression_h], !event_cascade_literal_vars[lit->getID()][l][0], con_ife);
-                    }
-                    z3_solver->add(implies(sta_action_vars[enc_opID][enc_expression_h], con_ife));
+                    z3_solver->add(implies(sta_action_vars[enc_opID][enc_expression_h], !event_cascade_literal_vars[lit->getID()][enc_expression_h][opt->cascade_bound - 2]));
                     // mutual exclusion
                     std::vector<int>::const_iterator iterator = simpleStartAddEffects[lit->getID()].begin();
                     for (; iterator != simpleStartAddEffects[lit->getID()].end(); ++iterator) {
@@ -1083,11 +1032,7 @@ namespace SMTPlan
                         z3_solver->add(!sta_action_vars[enc_opID][enc_expression_h] || !sta_action_vars[(*iterator)][enc_expression_h]);
                     }
                 } else {
-                    z3::expr con_ife = z3_context->bool_val(false);
-                    for (int l = 0; l < literal_bound; l++) {
-                        con_ife = z3::ite(literal_time_vars[lit->getID()][l] == time_vars[enc_expression_h], event_cascade_literal_vars[lit->getID()][l][0], con_ife);
-                    }
-                    z3_solver->add(implies(sta_action_vars[enc_opID][enc_expression_h], con_ife));
+                    z3_solver->add(implies(sta_action_vars[enc_opID][enc_expression_h], event_cascade_literal_vars[lit->getID()][enc_expression_h][opt->cascade_bound - 2]));
                     // mutual exclusion
                     std::vector<int>::const_iterator iterator = simpleStartDelEffects[lit->getID()].begin();
                     for (; iterator != simpleStartDelEffects[lit->getID()].end(); ++iterator) {
@@ -1106,12 +1051,8 @@ namespace SMTPlan
                     case VAL::E_AT_START:
 
                         if (enc_cond_neg) {
-                            z3::expr con_ife = z3_context->bool_val(false);
-                            for (int l = 0; l < literal_bound; l++) {
-                                con_ife = z3::ite(literal_time_vars[lit->getID()][l] == time_vars[enc_expression_h], !event_cascade_literal_vars[lit->getID()][l][0], con_ife);
-                            }
-                            z3_solver->add(implies(sta_action_vars[enc_opID][enc_expression_h], con_ife));
 
+                            z3_solver->add(implies(sta_action_vars[enc_opID][enc_expression_h], !event_cascade_literal_vars[lit->getID()][enc_expression_h][opt->cascade_bound - 2]));
                             // mutual exclusion
                             std::vector<int>::const_iterator iterator = simpleStartAddEffects[lit->getID()].begin();
                             for (; iterator != simpleStartAddEffects[lit->getID()].end(); ++iterator) {
@@ -1120,12 +1061,8 @@ namespace SMTPlan
                                 z3_solver->add(!sta_action_vars[enc_opID][enc_expression_h] || !sta_action_vars[(*iterator)][enc_expression_h]);
                             }
                         } else {
-                            z3::expr con_ife = z3_context->bool_val(false);
-                            for (int l = 0; l < literal_bound; l++) {
-                                con_ife = z3::ite(literal_time_vars[lit->getID()][l] == time_vars[enc_expression_h], event_cascade_literal_vars[lit->getID()][l][0], con_ife);
-                            }
-                            z3_solver->add(implies(sta_action_vars[enc_opID][enc_expression_h], con_ife));
 
+                            z3_solver->add(implies(sta_action_vars[enc_opID][enc_expression_h], event_cascade_literal_vars[lit->getID()][enc_expression_h][opt->cascade_bound - 2]));
                             // mutual exclusion
                             std::vector<int>::const_iterator iterator = simpleStartDelEffects[lit->getID()].begin();
                             for (; iterator != simpleStartDelEffects[lit->getID()].end(); ++iterator) {
@@ -1137,32 +1074,16 @@ namespace SMTPlan
                         break;
                     case VAL::E_AT_END:
                         if (enc_cond_neg) {
-                            z3::expr con_ife = z3_context->bool_val(false);
-                            for (int l = 0; l < literal_bound; l++) {
-                                con_ife = z3::ite(literal_time_vars[lit->getID()][l] == time_vars[enc_expression_h], !event_cascade_literal_vars[lit->getID()][l][0], con_ife);
-                            }
-                            z3_solver->add(implies(end_action_vars[enc_opID][enc_expression_h], con_ife));
+                            z3_solver->add(implies(end_action_vars[enc_opID][enc_expression_h], !event_cascade_literal_vars[lit->getID()][enc_expression_h][opt->cascade_bound - 2]));
                         } else {
-                            z3::expr con_ife = z3_context->bool_val(false);
-                            for (int l = 0; l < literal_bound; l++) {
-                                con_ife = z3::ite(literal_time_vars[lit->getID()][l] == time_vars[enc_expression_h], event_cascade_literal_vars[lit->getID()][l][0], con_ife);
-                            }
-                            z3_solver->add(implies(end_action_vars[enc_opID][enc_expression_h], con_ife));
+                            z3_solver->add(implies(end_action_vars[enc_opID][enc_expression_h], event_cascade_literal_vars[lit->getID()][enc_expression_h][opt->cascade_bound - 2]));
                         }
                         break;
                     case VAL::E_OVER_ALL:
                         if (enc_cond_neg) {
-                            z3::expr con_ife = z3_context->bool_val(false);
-                            for (int l = 0; l < literal_bound; l++) {
-                                con_ife = z3::ite(literal_time_vars[lit->getID()][l] == time_vars[enc_expression_h], !event_cascade_literal_vars[lit->getID()][l][0], con_ife);
-                            }
-                            z3_solver->add(implies(run_action_vars[enc_opID][enc_expression_h], con_ife));
+                            z3_solver->add(implies(run_action_vars[enc_opID][enc_expression_h], !event_cascade_literal_vars[lit->getID()][enc_expression_h][opt->cascade_bound - 2]));
                         } else {
-                            z3::expr con_ife = z3_context->bool_val(false);
-                            for (int l = 0; l < literal_bound; l++) {
-                                con_ife = z3::ite(literal_time_vars[lit->getID()][l] == time_vars[enc_expression_h], event_cascade_literal_vars[lit->getID()][l][0], con_ife);
-                            }
-                            z3_solver->add(implies(run_action_vars[enc_opID][enc_expression_h], con_ife));
+                            z3_solver->add(implies(run_action_vars[enc_opID][enc_expression_h], event_cascade_literal_vars[lit->getID()][enc_expression_h][opt->cascade_bound - 2]));
                         }
                         break;
                 }
@@ -1175,7 +1096,7 @@ namespace SMTPlan
         delete l;
     }
 
-    void EncoderFluent::visit_comparison(VAL::comparison* c)
+    void Encoder::visit_comparison(VAL::comparison* c)
     {
 
         enc_expression_stack.clear();
@@ -1208,7 +1129,6 @@ namespace SMTPlan
                 com = (lhs <= rhs) && (lhs >= rhs);
                 break;
         }
-
         // encode planning constraint
         switch (enc_state) {
 
@@ -1254,17 +1174,18 @@ namespace SMTPlan
         }
     }
 
-    void EncoderFluent::visit_qfied_goal(VAL::qfied_goal*) {}
-    void EncoderFluent::visit_disj_goal(VAL::disj_goal*) {}
-    void EncoderFluent::visit_imply_goal(VAL::imply_goal*) {}
+    void Encoder::visit_qfied_goal(VAL::qfied_goal*) {}
+    void Encoder::visit_disj_goal(VAL::disj_goal*) {}
+    void Encoder::visit_imply_goal(VAL::imply_goal*) {}
 
     /*---------*/
     /* effects */
     /*---------*/
 
-    void EncoderFluent::visit_effect_lists(VAL::effect_lists* e)
+    void Encoder::visit_effect_lists(VAL::effect_lists* e)
     {
 
+        enc_eff_neg = false;
         e->add_effects.pc_list<VAL::simple_effect*>::visit(this);
 
         enc_eff_neg = true;
@@ -1278,13 +1199,13 @@ namespace SMTPlan
         e->timed_effects.pc_list<VAL::timed_effect*>::visit(this);
     }
 
-    void EncoderFluent::visit_timed_effect(VAL::timed_effect* e)
+    void Encoder::visit_timed_effect(VAL::timed_effect* e)
     {
         enc_eff_time = e->ts;
         e->effs->visit(this);
     };
 
-    void EncoderFluent::visit_simple_effect(VAL::simple_effect* e)
+    void Encoder::visit_simple_effect(VAL::simple_effect* e)
     {
         Inst::Literal* l = new Inst::Literal(e->prop, fe);
         Inst::Literal* const lit = Inst::instantiatedOp::findLiteral(l);
@@ -1296,24 +1217,16 @@ namespace SMTPlan
 
             case ENC_EVENT_EFFECT:
                 if (enc_eff_neg) {
-                    z3::expr eff_ife = z3_context->bool_val(false);
-                    for (int l = 0; l < literal_bound; l++) {
-                        eff_ife = z3::ite(literal_time_vars[lit->getID()][l] == time_vars[enc_expression_h], !event_cascade_literal_vars[lit->getID()][l][enc_expression_b + 1], eff_ife);
-                    }
                     z3_solver->add(implies(
                         event_vars[enc_opID][enc_expression_h][enc_expression_b],
-                        eff_ife));
+                        !event_cascade_literal_vars[lit->getID()][enc_expression_h][enc_expression_b + 1]));
                     // save del effect for literal support later
                     if (enc_expression_h == 0 && enc_expression_b == 0)
                         simpleEventDelEffects[lit->getID()].push_back(enc_opID);
                 } else {
-                    z3::expr eff_ife = z3_context->bool_val(false);
-                    for (int l = 0; l < literal_bound; l++) {
-                        eff_ife = z3::ite(literal_time_vars[lit->getID()][l] == time_vars[enc_expression_h], event_cascade_literal_vars[lit->getID()][l][enc_expression_b + 1], eff_ife);
-                    }
                     z3_solver->add(implies(
                         event_vars[enc_opID][enc_expression_h][enc_expression_b],
-                        eff_ife));
+                        event_cascade_literal_vars[lit->getID()][enc_expression_h][enc_expression_b + 1]));
                     // save add effect for literal support later
                     if (enc_expression_h == 0 && enc_expression_b == 0)
                         simpleEventAddEffects[lit->getID()].push_back(enc_opID);
@@ -1321,26 +1234,13 @@ namespace SMTPlan
                 break;
 
             case ENC_SIMPLE_ACTION_EFFECT:
-
                 if (enc_eff_neg) {
-                    z3::expr eff_ife = z3_context->bool_val(false);
-                    for (int l = 0; l < literal_bound; l++) {
-                        eff_ife = z3::ite(literal_time_vars[lit->getID()][l] == time_vars[enc_expression_h], !event_cascade_literal_vars[lit->getID()][l][1], eff_ife);
-                    }
-                    z3_solver->add(implies(
-                        sta_action_vars[enc_opID][enc_expression_h],
-                        eff_ife));
+                    z3_solver->add(implies(sta_action_vars[enc_opID][enc_expression_h], !event_cascade_literal_vars[lit->getID()][enc_expression_h][opt->cascade_bound - 1]));
                     // save del effect for literal support later
                     if (enc_expression_h == 0)
                         simpleStartDelEffects[lit->getID()].push_back(enc_opID);
                 } else {
-                    z3::expr eff_ife = z3_context->bool_val(false);
-                    for (int l = 0; l < literal_bound; l++) {
-                        eff_ife = z3::ite(literal_time_vars[lit->getID()][l] == time_vars[enc_expression_h], event_cascade_literal_vars[lit->getID()][l][1], eff_ife);
-                    }
-                    z3_solver->add(implies(
-                        sta_action_vars[enc_opID][enc_expression_h],
-                        eff_ife));
+                    z3_solver->add(implies(sta_action_vars[enc_opID][enc_expression_h], event_cascade_literal_vars[lit->getID()][enc_expression_h][opt->cascade_bound - 1]));
                     // save add effect for literal support later
                     if (enc_expression_h == 0)
                         simpleStartAddEffects[lit->getID()].push_back(enc_opID);
@@ -1351,12 +1251,12 @@ namespace SMTPlan
 
                 problem_info->staticPredicateMap[lit->getHead()->getName()] = false;
                 if (enc_eff_neg) {
-                    // TODO				z3_solver->add(implies(til_vars[enc_tilID][enc_expression_h], !event_cascade_literal_vars[lit->getID()][l][0]));
+                    z3_solver->add(implies(til_vars[enc_tilID][enc_expression_h], !event_cascade_literal_vars[lit->getID()][enc_expression_h][0]));
                     // save del effect for literal support later
                     if (enc_expression_h == 0)
                         simpleTILDelEffects[lit->getID()].push_back(enc_tilID);
                 } else {
-                    //	TODO			z3_solver->add(implies(til_vars[enc_tilID][enc_expression_h], event_cascade_literal_vars[lit->getID()][l][0]));
+                    z3_solver->add(implies(til_vars[enc_tilID][enc_expression_h], event_cascade_literal_vars[lit->getID()][enc_expression_h][0]));
                     // save add effect for literal support later
                     if (enc_expression_h == 0)
                         simpleTILAddEffects[lit->getID()].push_back(enc_tilID);
@@ -1365,27 +1265,14 @@ namespace SMTPlan
 
             case ENC_ACTION_EFFECT:
                 switch (enc_eff_time) {
-
                     case VAL::E_AT_START:
                         if (enc_eff_neg) {
-                            z3::expr eff_ife = z3_context->bool_val(false);
-                            for (int l = 0; l < literal_bound; l++) {
-                                eff_ife = z3::ite(literal_time_vars[lit->getID()][l] == time_vars[enc_expression_h], !event_cascade_literal_vars[lit->getID()][l][1], eff_ife);
-                            }
-                            z3_solver->add(implies(
-                                sta_action_vars[enc_opID][enc_expression_h],
-                                eff_ife));
+                            z3_solver->add(implies(sta_action_vars[enc_opID][enc_expression_h], !event_cascade_literal_vars[lit->getID()][enc_expression_h][opt->cascade_bound - 1]));
                             // save del effect for literal support later
                             if (enc_expression_h == 0)
                                 simpleStartDelEffects[lit->getID()].push_back(enc_opID);
                         } else {
-                            z3::expr eff_ife = z3_context->bool_val(false);
-                            for (int l = 0; l < literal_bound; l++) {
-                                eff_ife = z3::ite(literal_time_vars[lit->getID()][l] == time_vars[enc_expression_h], event_cascade_literal_vars[lit->getID()][l][1], eff_ife);
-                            }
-                            z3_solver->add(implies(
-                                sta_action_vars[enc_opID][enc_expression_h],
-                                eff_ife));
+                            z3_solver->add(implies(sta_action_vars[enc_opID][enc_expression_h], event_cascade_literal_vars[lit->getID()][enc_expression_h][opt->cascade_bound - 1]));
                             // save add effect for literal support later
                             if (enc_expression_h == 0)
                                 simpleStartAddEffects[lit->getID()].push_back(enc_opID);
@@ -1393,24 +1280,12 @@ namespace SMTPlan
                         break;
                     case VAL::E_AT_END:
                         if (enc_eff_neg) {
-                            z3::expr eff_ife = z3_context->bool_val(false);
-                            for (int l = 0; l < literal_bound; l++) {
-                                eff_ife = z3::ite(literal_time_vars[lit->getID()][l] == time_vars[enc_expression_h], !event_cascade_literal_vars[lit->getID()][l][1], eff_ife);
-                            }
-                            z3_solver->add(implies(
-                                end_action_vars[enc_opID][enc_expression_h],
-                                eff_ife));
+                            z3_solver->add(implies(end_action_vars[enc_opID][enc_expression_h], !event_cascade_literal_vars[lit->getID()][enc_expression_h][opt->cascade_bound - 1]));
                             // save del effect for literal support later
                             if (enc_expression_h == 0)
                                 simpleEndDelEffects[lit->getID()].push_back(enc_opID);
                         } else {
-                            z3::expr eff_ife = z3_context->bool_val(false);
-                            for (int l = 0; l < literal_bound; l++) {
-                                eff_ife = z3::ite(literal_time_vars[lit->getID()][l] == time_vars[enc_expression_h], event_cascade_literal_vars[lit->getID()][l][1], eff_ife);
-                            }
-                            z3_solver->add(implies(
-                                end_action_vars[enc_opID][enc_expression_h],
-                                eff_ife));
+                            z3_solver->add(implies(end_action_vars[enc_opID][enc_expression_h], event_cascade_literal_vars[lit->getID()][enc_expression_h][opt->cascade_bound - 1]));
                             // save add effect for literal support later
                             if (enc_expression_h == 0)
                                 simpleEndAddEffects[lit->getID()].push_back(enc_opID);
@@ -1427,7 +1302,7 @@ namespace SMTPlan
         delete l;
     }
 
-    void EncoderFluent::visit_assignment(VAL::assignment* e)
+    void Encoder::visit_assignment(VAL::assignment* e)
     {
 
         Inst::PNE* l = new Inst::PNE(e->getFTerm(), fe);
@@ -1531,19 +1406,19 @@ namespace SMTPlan
         delete l;
     }
 
-    void EncoderFluent::visit_forall_effect(VAL::forall_effect* e) { std::cout << "not implemented forall" << std::endl; };
-    void EncoderFluent::visit_cond_effect(VAL::cond_effect* e) { std::cout << "not implemented cond" << std::endl; };
+    void Encoder::visit_forall_effect(VAL::forall_effect* e) { std::cout << "not implemented forall" << std::endl; };
+    void Encoder::visit_cond_effect(VAL::cond_effect* e) { std::cout << "not implemented cond" << std::endl; };
 
     /*-------------*/
     /* expressions */
     /*-------------*/
 
-    void EncoderFluent::parseExpression(VAL::expression* e)
+    void Encoder::parseExpression(VAL::expression* e)
     {
         e->visit(this);
     }
 
-    void EncoderFluent::visit_plus_expression(VAL::plus_expression* s)
+    void Encoder::visit_plus_expression(VAL::plus_expression* s)
     {
 
         s->getLHS()->visit(this);
@@ -1556,7 +1431,7 @@ namespace SMTPlan
         enc_expression_stack.push_back(lhs + rhs);
     }
 
-    void EncoderFluent::visit_minus_expression(VAL::minus_expression* s)
+    void Encoder::visit_minus_expression(VAL::minus_expression* s)
     {
 
         s->getLHS()->visit(this);
@@ -1569,7 +1444,7 @@ namespace SMTPlan
         enc_expression_stack.push_back(lhs - rhs);
     }
 
-    void EncoderFluent::visit_mul_expression(VAL::mul_expression* s)
+    void Encoder::visit_mul_expression(VAL::mul_expression* s)
     {
 
         s->getLHS()->visit(this);
@@ -1582,7 +1457,7 @@ namespace SMTPlan
         enc_expression_stack.push_back(lhs * rhs);
     }
 
-    void EncoderFluent::visit_div_expression(VAL::div_expression* s)
+    void Encoder::visit_div_expression(VAL::div_expression* s)
     {
 
         s->getLHS()->visit(this);
@@ -1595,7 +1470,7 @@ namespace SMTPlan
         enc_expression_stack.push_back(lhs / rhs);
     }
 
-    void EncoderFluent::visit_uminus_expression(VAL::uminus_expression* s)
+    void Encoder::visit_uminus_expression(VAL::uminus_expression* s)
     {
 
         s->getExpr()->visit(this);
@@ -1605,7 +1480,7 @@ namespace SMTPlan
         enc_expression_stack.push_back(-exp);
     }
 
-    void EncoderFluent::visit_int_expression(VAL::int_expression* s)
+    void Encoder::visit_int_expression(VAL::int_expression* s)
     {
 
         std::stringstream ss;
@@ -1614,7 +1489,7 @@ namespace SMTPlan
         enc_expression_stack.push_back(dv);
     }
 
-    void EncoderFluent::visit_float_expression(VAL::float_expression* s)
+    void Encoder::visit_float_expression(VAL::float_expression* s)
     {
 
         std::stringstream ss;
@@ -1623,10 +1498,17 @@ namespace SMTPlan
         enc_expression_stack.push_back(dv);
     }
 
-    void EncoderFluent::visit_func_term(VAL::func_term* s)
+    void Encoder::visit_func_term(VAL::func_term* s)
     {
         Inst::PNE* l = new Inst::PNE(s, fe);
         Inst::PNE* const lit = Inst::instantiatedOp::findPNE(l);
+
+        if (!lit) {
+            z3::expr dv = z3_context->real_val(0);
+            enc_expression_stack.push_back(dv);
+            delete l;
+            return;
+        }
 
         switch (enc_state) {
 
@@ -1637,7 +1519,6 @@ namespace SMTPlan
                     enc_expression_stack.push_back(event_cascade_function_vars[lit->getID()][enc_expression_h][opt->cascade_bound - 1]);
                 }
                 break;
-
             case ENC_ACTION_DURATION:
             case ENC_ACTION_CONDITION:
             case ENC_ACTION_EFFECT:
@@ -1658,11 +1539,10 @@ namespace SMTPlan
                 std::cerr << "Visit func_term expression without correct state! (" << enc_state << ")" << std::endl;
                 break;
         }
-
         delete l;
     }
 
-    void EncoderFluent::visit_special_val_expr(VAL::special_val_expr* s)
+    void Encoder::visit_special_val_expr(VAL::special_val_expr* s)
     {
 
         switch (s->getKind()) {
@@ -1703,7 +1583,7 @@ namespace SMTPlan
     /* extra */
     /*-------*/
 
-    void EncoderFluent::visit_preference(VAL::preference*) {}
-    void EncoderFluent::visit_derivation_rule(VAL::derivation_rule* o) {}
+    void Encoder::visit_preference(VAL::preference*) {}
+    void Encoder::visit_derivation_rule(VAL::derivation_rule* o) {}
 
 }  // namespace SMTPlan

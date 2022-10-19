@@ -1,3 +1,0 @@
-// the configured options and settings for SMTPlan
-#define SMTPlan_VERSION_MAJOR @SMTPlan_VERSION_MAJOR@
-#define SMTPlan_VERSION_MINOR @SMTPlan_VERSION_MINOR@

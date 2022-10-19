@@ -142,7 +142,7 @@ flawed {digit}+{char}+
           }
 
 
-{string} {unsigned int i; 
+{string} {unsigned int i;
           yylval.cp = new char[strlen(yytext)+1];
           strcpy(yylval.cp,yytext);
 	  for(i = 0;i<strlen(yylval.cp);i++)
@@ -163,7 +163,7 @@ flawed {digit}+{char}+
 {float} {yylval.fval = atof(yytext);return (FLOATVAL);}
 {flawed} {printf("Illegal symbol: %s\n",yytext); exit(0); return 0;}
 
-%% 
+%%
 
 
 extern "C++" {

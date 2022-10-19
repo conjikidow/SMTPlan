@@ -1,12 +1,13 @@
 /**
  * The structs in this file are used to the setup of an SMTPlan instance.
  */
-#ifndef KCL_options
-#define KCL_options
+
+#pragma once
+
+#include <string>
 
 #define MAX_BITSET 100000
 
-#include <string>
 
 namespace SMTPlan
 {
@@ -31,9 +32,6 @@ namespace SMTPlan
         bool solve;
         bool keep_solving;
 
-        // encoding options
-        int encoder;
-
         // iterative deepening
         int lower_bound;
         int upper_bound;
@@ -41,6 +39,4 @@ namespace SMTPlan
         int step_size;
     };
 
-    // close namespace
 }  // namespace SMTPlan
-#endif

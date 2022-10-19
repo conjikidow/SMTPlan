@@ -1,4 +1,4 @@
-#include "SMTPlan/Algebraist.h"
+#include "Algebraist.hpp"
 
 /* implementation of SMTPlan::Algebraist */
 namespace SMTPlan
@@ -457,4 +457,4 @@ namespace SMTPlan
     void Algebraist::visit_event(VAL::event* e) {}
     void Algebraist::visit_derivation_rule(VAL::derivation_rule* o) {}
 
-};  // namespace SMTPlan
+}  // namespace SMTPlan

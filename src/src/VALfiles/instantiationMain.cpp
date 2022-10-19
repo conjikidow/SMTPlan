@@ -24,50 +24,41 @@
  *
  ************************************************************************/
 
-#ifndef __CGA
-#define __CGA
+#include "DebugWriteController.h"
+#include "SimpleEval.h"
+#include "TIM.h"
+#include "instantiation.h"
+#include "ptree.h"
+#include "typecheck.h"
+#include "FlexLexer.h"
+#include <cstdio>
+#include <fstream>
+#include <iostream>
 
-#include <map>
-#include <set>
+using std::cerr;
+using std::ifstream;
 
-namespace TIM
+using namespace TIM;
+using namespace Inst;
+using namespace VAL;
+
+int main(int argc, char* argv[])
 {
-    class Property;
+    performTIMAnalysis(&argv[1]);
+
+    SimpleEvaluator::setInitialState();
+    for (operator_list::const_iterator os = current_analysis->the_domain->ops->begin();
+         os != current_analysis->the_domain->ops->end(); ++os) {
+        cout << (*os)->name->getName() << "\n";
+        instantiatedOp::instantiate(*os, current_analysis->the_problem, *theTC);
+        cout << instantiatedOp::howMany() << " so far\n";
+    };
+    instantiatedOp::createAllLiterals(current_analysis->the_problem, theTC);
+    instantiatedOp::filterOps(theTC);
+    cout << instantiatedOp::howMany() << "\n";
+    instantiatedOp::writeAll(cout);
+
+    cout << "\nList of all literals:\n";
+
+    instantiatedOp::writeAllLiterals(cout);
 }
-
-namespace VAL
-{
-    using TIM::Property;
-
-    class CausalGraph
-    {
-      public:
-        typedef std::map<const Property*, std::set<const Property*>> Graph;
-
-      private:
-        Graph dependencies;
-        Graph dependents;
-
-      public:
-        CausalGraph();
-        const std::set<const Property*>& getDependencies(const Property* p)
-        {
-            return dependencies[p];
-        };
-        const std::set<const Property*>& getDependents(const Property* p)
-        {
-            return dependents[p];
-        };
-        void add(const Property*, const Property*);
-        void write(std::ostream& o) const;
-    };
-
-    inline std::ostream& operator<<(std::ostream& o, const CausalGraph& cg)
-    {
-        cg.write(o);
-        return o;
-    };
-
-}  // namespace VAL
-
-#endif

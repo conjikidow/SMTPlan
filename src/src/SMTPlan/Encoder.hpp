@@ -1,40 +1,57 @@
 /**
  * This file describes the Encoder class. This class
- * is used to create encodings of a PDDL domain and 
+ * is used to create encodings of a PDDL domain and
  * problem pair.
  */
+
+#pragma once
+
 #include <cstdio>
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <vector>
 
-#include "z3++.h"
+#include <z3++.h>
 
-#include "FastEnvironment.h"
-#include "TIM.h"
-#include "VisitController.h"
-#include "instantiation.h"
-#include "ptree.h"
+#include <VALfiles/FastEnvironment.h>
+#include <VALfiles/TIM.h>
+#include <VALfiles/VisitController.h>
+#include <VALfiles/instantiation.h>
+#include <VALfiles/ptree.h>
 
-#include "SMTPlan/Algebraist.h"
-#include "SMTPlan/Encoder.h"
-#include "SMTPlan/PlannerOptions.h"
-#include "SMTPlan/ProblemInfo.h"
+#include "Algebraist.hpp"
+#include "Encoder.hpp"
+#include "PlannerOptions.hpp"
+#include "ProblemInfo.hpp"
 
-#ifndef KCL_encoder_fluent
-#define KCL_encoder_fluent
 
 namespace SMTPlan
 {
-    class EncoderFluent : public Encoder
+
+    enum EncState {
+        ENC_NONE,
+        ENC_INIT,
+        ENC_GOAL,
+        ENC_LITERAL,
+        ENC_ACTION_CONDITION,
+        ENC_ACTION_DURATION,
+        ENC_ACTION_EFFECT,
+        ENC_SIMPLE_ACTION_CONDITION,
+        ENC_SIMPLE_ACTION_EFFECT,
+        ENC_TIL_EFFECT,
+        ENC_EVENT_CONDITION,
+        ENC_EVENT_EFFECT,
+        ENC_PROCESS_CONDITION
+    };
+
+
+    class Encoder : public VAL::VisitController
     {
       private:
         /* encoding info */
         int upper_bound;
         int next_layer;
-        int literal_bound;
-        int next_literal_layer;
         std::vector<z3::expr> goal_expression;
 
         /* problem info */
@@ -64,7 +81,6 @@ namespace SMTPlan
         EncState enc_state;
         int enc_expression_h;
         int enc_expression_b;
-        int enc_expression_l;
         std::vector<z3::expr> enc_expression_stack;
 
         std::vector<z3::expr> enc_musts_expression_stack;
@@ -94,11 +110,8 @@ namespace SMTPlan
         /* SMT variables */
         std::vector<z3::expr> time_vars;
         std::vector<z3::expr> duration_vars;
-
-        std::vector<std::vector<std::vector<z3::expr>>> event_cascade_literal_vars;
-        std::vector<std::vector<z3::expr>> literal_time_vars;
-
         std::vector<std::vector<std::vector<z3::expr>>> event_cascade_function_vars;
+        std::vector<std::vector<std::vector<z3::expr>>> event_cascade_literal_vars;
         std::map<int, std::vector<std::vector<z3::expr>>> event_vars;
         std::map<int, std::vector<z3::expr>> sta_action_vars;
         std::map<int, std::vector<z3::expr>> end_action_vars;
@@ -107,12 +120,12 @@ namespace SMTPlan
         std::map<int, std::vector<z3::expr>> til_vars;
 
         /* encoding methods */
-        void encodeHeader(int H, int L);
+        void encodeHeader(int H);
         void encodeTimings(int H);
-        void encodeLiteralVariableSupport(int H, int L);
+        void encodeLiteralVariableSupport(int H);
         void encodeFunctionVariableSupport(int H);
         void encodeFunctionFlows(int H);
-        void encodeGoalState(int H, int L);
+        void encodeGoalState(int H);
         void encodeInitialState();
 
         void parseExpression(VAL::expression* e);
@@ -181,7 +194,7 @@ namespace SMTPlan
         }
 
       public:
-        EncoderFluent(Algebraist* alg, VAL::analysis* analysis, PlannerOptions& options, ProblemInfo& pi)
+        Encoder(Algebraist* alg, VAL::analysis* analysis, PlannerOptions& options, ProblemInfo& pi)
         {
             next_layer = 0;
 
@@ -209,7 +222,6 @@ namespace SMTPlan
             // for each [func|lit] : for each happening : for each cascade level
             event_cascade_function_vars = std::vector<std::vector<std::vector<z3::expr>>>(pneCount);
             event_cascade_literal_vars = std::vector<std::vector<std::vector<z3::expr>>>(litCount);
-            literal_time_vars = std::vector<std::vector<z3::expr>>(litCount);
 
             z3::config cfg;
             cfg.set("auto_config", true);
@@ -220,6 +232,8 @@ namespace SMTPlan
 
         /* encoding methods */
         bool encode(int H);
+
+        void exceptPreviousModel();
 
         /*
 		 * add goal expression to the model for printing.
@@ -269,10 +283,11 @@ namespace SMTPlan
         virtual void visit_derivation_rule(VAL::derivation_rule* o);
 
         /* solving */
+        z3::context* z3_context;
+        z3::tactic* z3_tactic;
+        z3::solver* z3_solver;
         z3::check_result solve();
         void printModel();
     };
 
 }  // namespace SMTPlan
-
-#endif

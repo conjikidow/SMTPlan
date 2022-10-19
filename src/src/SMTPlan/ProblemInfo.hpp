@@ -1,23 +1,24 @@
 /**
  * This file describes the problem.
  */
+
+#pragma once
+
 #include <map>
 #include <string>
 #include <vector>
 
-#include "z3++.h"
+#include <z3++.h>
 
 #include <piranha/math.hpp>
 #include <piranha/piranha.hpp>
 
-#ifndef KCL_problem_info
-#define KCL_problem_info
-
-// polynomials over R||Q
-using pexpr = piranha::polynomial<piranha::rational, piranha::monomial<int>>;
 
 namespace SMTPlan
 {
+
+    // polynomials over R||Q
+    using pexpr = piranha::polynomial<piranha::rational, piranha::monomial<int>>;
 
     struct ProblemInfo
     {
@@ -28,5 +29,3 @@ namespace SMTPlan
     };
 
 }  // namespace SMTPlan
-
-#endif

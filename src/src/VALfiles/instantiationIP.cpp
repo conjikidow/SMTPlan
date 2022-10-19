@@ -29,7 +29,7 @@
 #include "SimpleEval.h"
 #include "ptree.h"
 #include "typecheck.h"
-#include <FlexLexer.h>
+#include "FlexLexer.h"
 #include <cstdio>
 #include <fstream>
 #include <iostream>

@@ -10,7 +10,7 @@ if [ ! -f build_environment.sif ]; then
         exit 1
     fi
 else
-    echo -e '\e[1;36mbuild_environment has already built.\e[m'
+    echo -e '\e[1;36mbuild_environment has already been built.\e[m'
 fi
 
 echo -e '\e[1;36mBuilding executable ...\e[m'

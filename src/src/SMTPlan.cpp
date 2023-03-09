@@ -8,24 +8,24 @@
 
 int number_of_arguments = 9;
 SMTPlan::Argument argument[] = {
-    {"-h", false, "\tPrint this and exit."},
+    {"-h", false, "\t\tPrint this and exit."},
+    {"-n", false, "\t\tDo not solve. Output encoding in smt2 format and exit."},
+    {"-t", false, "\t\tExecute temporal planning."},
     {"-l", true, "number\tBegin iterative deepening at an encoding with l happenings (default 1)."},
     {"-u", true, "number\tRun iterative deepening until the u is reached. Set -1 for unlimited (default -1)."},
     {"-c", true, "number\tLimit the length of the concurrent cascading event and action chain (default 2, minimum 2)."},
     {"-s", true, "number\tIteratively deepen with a step size of s (default 1)."},
-    {"-r", false, "\tContinue solving after a plan found (use this with -u option)."},
-    {"-n", false, "\tDo not solve. Output encoding in smt2 format and exit."},
-    {"-v", false, "\tVerbose times."},
-    {"-d", false, "\tDebug output."}};
+    {"-v", false, "\t\tVerbose times."},
+    {"-d", false, "\t\tDebug output."}};
 
-void printUsage(char* arg)
+void printUsage(std::string arg)
 {
-    fprintf(stdout, "Usage: %s domain problem [options]\n", arg);
-    fprintf(stdout, "Options:\n");
+    std::cout << "Usage: " << arg << " domain problem [options]" << std::endl;
+    std::cout << "Options:" << std::endl;
     for (int i = 0; i < number_of_arguments; i++) {
-        fprintf(stdout, "\t%s\t%s\n", argument[i].name.c_str(), argument[i].help.c_str());
+        std::cout << "\t" << argument[i].name.c_str() << " " << argument[i].help.c_str() << std::endl;
     }
-    fprintf(stdout, "Example: %s domain.pddl problem.pddl -l 4 -u 10 -s 2\n", arg);
+    std::cout << "Example: " << arg << " domain.pddl problem.pddl -t -l 4 -u 10 -s 2" << std::endl;
 }
 
 /*---------------------------*/
@@ -42,7 +42,7 @@ bool parseArguments(int argc, char* argv[], SMTPlan::PlannerOptions& options)
     options.verbose = false;
     options.debug = false;
     options.solve = true;
-    options.keep_solving = false;
+    options.temporal = false;
     options.lower_bound = 1;
     options.upper_bound = -1;
     options.cascade_bound = 2;
@@ -81,8 +81,8 @@ bool parseArguments(int argc, char* argv[], SMTPlan::PlannerOptions& options)
                     options.cascade_bound = 2;
             } else if (argument[j].name == "-s") {
                 options.step_size = atoi(argv[i]);
-            } else if (argument[j].name == "-r") {
-                options.keep_solving = true;
+            } else if (argument[j].name == "-t") {
+                options.temporal = true;
             } else if (argument[j].name == "-n") {
                 options.solve = false;
             } else if (argument[j].name == "-v") {
@@ -125,16 +125,19 @@ double getTotalElapsed()
 
 int main(int argc, char* argv[])
 {
+    std::string exec_name = argv[0];
+    std::string cmd_name = exec_name.substr(exec_name.find_last_of("/\\") + 1);
+
     // check arguments
     if (argc < 3) {
-        printUsage(argv[0]);
+        printUsage(cmd_name);
         return 1;
     }
 
     // parse arguments
     SMTPlan::PlannerOptions options;
     if (!parseArguments(argc, argv, options)) {
-        printUsage(argv[0]);
+        printUsage(cmd_name);
         return 1;
     }
 
@@ -220,9 +223,7 @@ int main(int argc, char* argv[])
         if (result == z3::sat) {
             if (options.verbose) {
                 fprintf(stdout, "Solved %i:\t%f seconds\n", i, getElapsed());
-                if (!options.keep_solving) {
-                    fprintf(stdout, "Total time:\t%f seconds\n", getTotalElapsed());
-                }
+                fprintf(stdout, "Total time:\t%f seconds\n", getTotalElapsed());
                 std::cout << "\n==================================================" << std::endl;
             }
             encoder.printModel();
@@ -231,13 +232,7 @@ int main(int argc, char* argv[])
             }
 
             plan_found = true;
-            if (options.keep_solving) {
-                encoder.exceptPreviousModel();
-            } else {
-                return 0;
-            }
-
-            std::cout << std::endl;
+            return 0;
         } else {
             i += options.step_size;
         }

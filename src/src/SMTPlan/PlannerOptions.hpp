@@ -30,7 +30,7 @@ namespace SMTPlan
 
         // solving options
         bool solve;
-        bool keep_solving;
+        bool temporal;
 
         // iterative deepening
         int lower_bound;

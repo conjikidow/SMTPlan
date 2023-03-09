@@ -22,11 +22,6 @@ namespace SMTPlan
         z3::expr t = z3_context->bool_val(true);
         z3::set_param("pp.decimal", true);
 
-        for (int h = 0; h < upper_bound; h++) {
-            std::cout << h << " " << time_vars[h] << " " << m.eval(time_vars[h]) << std::endl;
-            std::cout << h << " " << duration_vars[h] << " " << m.eval(duration_vars[h]) << std::endl;
-        }
-
         //print plan
         for (int h = 0; h < upper_bound; h++) {
 
@@ -35,19 +30,24 @@ namespace SMTPlan
                 z3::expr v = m.eval(sta_action_vars[*ait][h]);
 
                 if (eq(v, t)) {
-                    // time
-                    std::cout << h << " " << time_vars[h] << " " << m.eval(time_vars[h]) << ":\t";
+                    if (opt->temporal) {
+                        // time
+                        std::cout << m.eval(time_vars[h]) << ":\t";
+                    }
                     // action
                     std::stringstream ss;
                     ss << sta_action_vars[*ait][h];
                     std::string a = ss.str();
                     std::cout << a.substr(a.find("("), a.find(")") - a.find("(") + 1);
-                    // duration
-                    std::cout << " [" << m.eval(dur_action_vars[*ait][h]) << "]" << std::endl;
+                    if (opt->temporal) {
+                        // duration
+                        std::cout << " [" << m.eval(dur_action_vars[*ait][h]) << "]";
+                    }
+                    std::cout << std::endl;
                 }
             }
 
-            if (opt->debug) {
+            if (opt->temporal && opt->debug) {
 
                 // events
                 std::map<int, std::vector<std::vector<z3::expr>>>::iterator eit = event_vars.begin();
@@ -107,7 +107,10 @@ namespace SMTPlan
                 }
             }
         }
-        std::cout << m.eval(time_vars[upper_bound - 1]) << ":\t< Goal >" << std::endl;
+
+        if (opt->temporal) {
+            std::cout << m.eval(time_vars[upper_bound - 1]) << ":\t< Goal >" << std::endl;
+        }
     }
 
     /**

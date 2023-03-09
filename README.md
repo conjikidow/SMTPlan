@@ -1,19 +1,44 @@
 # SMTPlan+
-This is a fork repository of [SMTPlan+](https://github.com/KCL-Planning/SMTPlan).
 
-The SMTPlan+ cannot be compiled on Ubuntu 20.04 or later, so this repository gives you easy ways to build it on any environments. Some other changes were also made.
+SMTPlan+ is a planner supporting PDDL+ developed by researchers at King's College London.
+This is a fork of the [SMTPlan+](https://github.com/KCL-Planning/SMTPlan) repository.
+All copyright for the original source code belongs to the original authors.
 
-What has changed from the original:
+The original SMTPlan+ cannot be compiled on Ubuntu 20.04 or later, so this repository provides easy ways to build it on any environment.
 
-- Add Singularity definition files so that you can easily build an image to execute SMTPlan+.
-    - You can build the image and install SMTPlan+ by running [install.sh](install.sh).
-    - Using Singularity, you can run SMTPlan+ on your host emvironment after installation.
-- Add Dockerfiles, too.
-    - You can build the Docker image by running [docker_build.sh](docker_build.sh).
-    - Using Docker, you can run SMTPlan+ on any containers over the smtplan:latest image.
-- Remove unused files and libraries.
-- Remove EncoderFluent since it doesn't work well.
-- The format of printing plans solved.
+## Changes from the Original
+
+The following changes have been made from the original SMTPlan+:
+
+- Added Apptainer (formerly known as Singularity) definition files and installer to easily execute SMTPlan+ on Linux.
+- Added Dockerfiles to build an image to execute SMTPlan+ on any environment.
+- Removed unused files and libraries.
+- Removed EncoderFluent as it is not functioning properly.
+- Modified the format for printing solved plans.
+
+## How to run
+### Apptainer
+
+To build the Apptainer image and install SMTPlan+ on your host system, just run [install.sh](install.sh).
+After installation, you can use `SMTPlan` command on your host environment.
+
+Note that [Apptainer](https://apptainer.org/) is required and currently only available on Linux systems.
+
+### Docker
+
+To build the Docker image, run [docker_build.sh](docker_build.sh).
+After build, you can use `SMTPlan` command on a container over the smtplan:latest image.
+
+The Docker image built is also available on [Docker Hub](https://hub.docker.com/r/conjikidow/smtplan).
+
+### Usage
+
+```
+SMTPlan domain_file problem_file [options]
+```
+
+Run `SMTPlan -h` for more information on a command.
+
 
 ---
 

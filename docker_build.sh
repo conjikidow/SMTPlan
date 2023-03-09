@@ -10,15 +10,15 @@ if [ ! "$(docker image ls -q "smtplan:build_environment")" ]; then
         exit 1
     fi
 else
-    echo -e '\e[1;36mbuild_environment has already built.\e[m'
+    echo -e '\e[1;36mbuild_environment has already been built.\e[m'
 fi
 
 echo -e '\e[1;36mBuilding executable ...\e[m'
 docker build --rm --file=docker/Dockerfile -t smtplan .
-docker image prune -f --filter label=note=smtplan
 if [ $? -ne 0 ]; then
     echo -e $'\e[1;31mFailed to build executable.\e[m'
     exit 1
 fi
+docker image prune -f --filter label=note=smtplan
 
 echo -e '\e[1;36mBuild a SMTPlan+ Docker image successfully.\e[m'

@@ -32,7 +32,7 @@ From: ubuntu:16.04
 # Install Z3
 %post
     git clone https://github.com/Z3Prover/z3.git /home/z3 && cd /home/z3
-    git checkout tags/z3-4.8.8
+    git checkout -f tags/z3-4.8.8
     mkdir build && cd build
     cmake -G "Unix Makefiles" -DZ3_BUILD_LIBZ3_SHARED=FALSE ..
     make -j4

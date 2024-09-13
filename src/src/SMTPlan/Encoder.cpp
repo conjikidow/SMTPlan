@@ -1085,8 +1085,10 @@ namespace SMTPlan
                     case VAL::E_OVER_ALL:
                         if (enc_cond_neg) {
                             z3_solver->add(implies(run_action_vars[enc_opID][enc_expression_h], !event_cascade_literal_vars[lit->getID()][enc_expression_h][opt->cascade_bound - 2]));
+                            z3_solver->add(implies(end_action_vars[enc_opID][enc_expression_h], !event_cascade_literal_vars[lit->getID()][enc_expression_h][opt->cascade_bound - 2]));
                         } else {
                             z3_solver->add(implies(run_action_vars[enc_opID][enc_expression_h], event_cascade_literal_vars[lit->getID()][enc_expression_h][opt->cascade_bound - 2]));
+                            z3_solver->add(implies(end_action_vars[enc_opID][enc_expression_h], event_cascade_literal_vars[lit->getID()][enc_expression_h][opt->cascade_bound - 2]));
                         }
                         break;
                 }

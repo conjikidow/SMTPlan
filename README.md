@@ -17,12 +17,13 @@ The following changes have been made from the original SMTPlan+:
 - Modified the format for printing solved plans.
 
 ## How to run
+
 ### Apptainer
 
 To build the Apptainer image and install SMTPlan+ on your host system, just run [install.sh](install.sh).
 After installation, you can use `SMTPlan` command on your host environment.
 
-Note that [Apptainer](https://apptainer.org/) is required and currently only available on Linux systems.
+Note that [Apptainer](https://apptainer.org/) (version 1.3.4) is required and currently only available on Linux systems.
 
 ### Docker
 
